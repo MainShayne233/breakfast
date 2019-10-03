@@ -13,7 +13,7 @@ defmodule VladTest do
   test "should require all fields that were not defined with a default value" do
     assert User.validate(%{}) ==
              {:error,
-              %Vlad.ValidateError{
+              %Vlad.Error{
                 message: "Missing fields in params.",
                 type: :missing_fields,
                 value: [:email, :age]
@@ -30,7 +30,7 @@ defmodule VladTest do
              "birthday" => "10/09/95"
            }) ==
              {:error,
-              %Vlad.ValidateError{
+              %Vlad.Error{
                 message: "Extraneous field in params.",
                 type: :extraneous_field,
                 value: "birthday"
@@ -40,7 +40,7 @@ defmodule VladTest do
   test "should complain about invalid value for field" do
     assert User.validate(%{"email" => :shayneAThotmailDOTcom}) ==
              {:error,
-              %Vlad.ValidateError{
+              %Vlad.Error{
                 message: "Invalid value for field",
                 type: :invalid_field_value,
                 value: {:email, :shayneAThotmailDOTcom}
@@ -50,7 +50,7 @@ defmodule VladTest do
   test "should complain about a bad cast" do
     assert User.validate(%{"email" => "shayne@hotmail.com", "age" => :"10"}) ==
              {:error,
-              %Vlad.ValidateError{
+              %Vlad.Error{
                 message: "Value failed to cast",
                 type: :cast_failure,
                 value: {:age, :"10"}

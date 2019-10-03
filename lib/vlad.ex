@@ -25,42 +25,8 @@ defmodule Vlad do
         unquote(build_struct(data))
 
         unquote(define_validators(data))
-
-        def __data__, do: unquote(Macro.escape(data))
       end
     end
-  end
-
-  defmodule ValidateError do
-    defexception [:type, :value, :message]
-
-    def new_missing_fields_error(missing_fields),
-      do: %__MODULE__{
-        type: :missing_fields,
-        value: missing_fields,
-        message: "Missing fields in params."
-      }
-
-    def new_extraneous_field_error(extraneous_field),
-      do: %__MODULE__{
-        type: :extraneous_field,
-        value: extraneous_field,
-        message: "Extraneous field in params."
-      }
-
-    def new_invalid_value_error(field_name, value),
-      do: %__MODULE__{
-        type: :invalid_field_value,
-        value: {field_name, value},
-        message: "Invalid value for field"
-      }
-
-    def new_cast_failure_error(field_name, value),
-      do: %__MODULE__{
-        type: :cast_failure,
-        value: {field_name, value},
-        message: "Value failed to cast"
-      }
   end
 
   defp define_validators(data) do
@@ -82,7 +48,7 @@ defmodule Vlad do
                 {:ok, struct!(__MODULE__, validated_params)}
 
               missing_fields ->
-                {:error, ValidateError.new_missing_fields_error(missing_fields)}
+                {:error, Vlad.Error.new_missing_fields_error(missing_fields)}
             end
 
           {:error, error} ->
@@ -99,7 +65,7 @@ defmodule Vlad do
       unquote_splicing(Enum.map(data.fields, &define_field_validator/1))
 
       defp validate_field(invalid_key, value) do
-        {:error, ValidateError.new_extraneous_field_error(invalid_key)}
+        {:error, Vlad.Error.new_extraneous_field_error(invalid_key)}
       end
     end
   end
@@ -113,10 +79,10 @@ defmodule Vlad do
           {:ok, {unquote(field.name), casted_value}}
         else
           {:cast, :error} ->
-            {:error, ValidateError.new_cast_failure_error(unquote(field.name), value)}
+            {:error, Vlad.Error.new_cast_failure_error(unquote(field.name), value)}
 
           {:validate, :error} ->
-            {:error, ValidateError.new_invalid_value_error(unquote(field.name), value)}
+            {:error, Vlad.Error.new_invalid_value_error(unquote(field.name), value)}
         end
       end
     end
