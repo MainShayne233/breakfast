@@ -1,202 +1,275 @@
 defmodule Vlad do
+  import Vlad.Types, only: [standard_types: 0, is_standard_type: 1]
+
+  alias Vlad.Digest.Field
+
   defmacro __using__(_) do
     quote do
-      import Customs, only: [decoder: 2]
+      import Vlad, only: [defdata: 2]
     end
   end
 
-  defmacro decoder(name, do: {:__block__, _, body}) do
+  defmacro defdata(name, do: block) do
+    name
+    |> Vlad.Digest.digest_data(block)
+    |> define_module()
+  end
+
+  defp define_module(data) do
     quote do
-      defmodule unquote(name) do
-        defmodule TypeError do
-          defexception message: "Invalid type for field",
-                       field: nil,
-                       expected_type: nil,
-                       value: nil
-        end
+      defmodule unquote(data.name) do
+        unquote_splicing(Enum.map(data.datas, &define_module/1))
 
-        defmodule InvalidFieldError do
-          defexception message: "Invalid field provided", field: nil, value: nil
-        end
+        unquote(define_type(data))
 
-        defmodule MissingFieldsError do
-          defexception message: "Missing fields", missing_fields: []
-        end
+        unquote(build_struct(data))
 
-        import Customs, only: [decoder: 2]
+        unquote(define_validators(data))
 
-        @fields unquote(struct_fields(body))
-
-        @enforce_keys Enum.reject(@fields, &match?({_, _}, &1))
-
-        unquote(typespec(body))
-
-        defstruct @fields
-
-        unquote_splicing(nested_decoders(body))
-
-        unquote(validate_function())
-
-        unquote_splicing(field_validators(body))
-
-        defp validate_field(field_name, value) do
-          {:error, %InvalidFieldError{field: field_name, value: value}}
-        end
+        # TODO maybe hide?
+        def __data__, do: unquote(Macro.escape(data))
       end
     end
   end
 
-  def validate_value(:string, value, _options) when is_binary(value), do: {:ok, value}
-  def validate_value(:float, value, _options) when is_float(value), do: {:ok, value}
-  def validate_value(:boolean, value, _options) when is_boolean(value), do: {:ok, value}
+  defmodule ValidateError do
+    defexception [:type, :value, :message]
 
-  def validate_value(module, %{} = value, _options) when is_atom(module) do
-    module.validate(value)
+    def new_missing_fields_error(missing_fields) do
+      %__MODULE__{
+        type: :missing_fields,
+        value: missing_fields,
+        message: "Missing fields in params."
+      }
+    end
   end
 
-  def validate_value(_type, _value, _options) do
-    :error
-  end
-
-  defp validate_function do
+  defp define_validators(data) do
     quote do
-      def validate(params) do
-        validated_params =
-          Enum.reduce_while(params, %{}, fn {key, value}, acc ->
-            case validate_field(key, value) do
-              {:ok, {field_name, value}} ->
-                {:cont, Map.put(acc, field_name, value)}
+      def validate(%{} = params) do
+        Enum.reduce_while(params, [], fn {key, value}, validated_params ->
+          case validate_field(key, value) do
+            {:ok, {field_name, field_value}} ->
+              {:cont, [{field_name, field_value} | validated_params]}
 
-              {:error, error} ->
-                {:halt, {:error, error}}
+            {:error, error} ->
+              {:halt, {:error, error}}
+          end
+        end)
+        |> case do
+          validated_params when is_list(validated_params) ->
+            case @enforce_keys -- Keyword.keys(validated_params) do
+              [] ->
+                {:ok, struct!(__MODULE__, validated_params)}
+
+              missing_fields ->
+                {:error, ValidateError.new_missing_fields_error(missing_fields)}
             end
-          end)
-
-        with %{} <- validated_params,
-             :ok <- validate_required_fields(validated_params) do
-          {:ok, struct!(__MODULE__, validated_params)}
-        end
-      end
-
-      defp validate_required_fields(validated_params) do
-        case @enforce_keys -- Map.keys(validated_params) do
-          [] ->
-            :ok
-
-          missing_fields ->
-            {:error, %MissingFieldsError{missing_fields: Enum.map(missing_fields, &to_string/1)}}
-        end
-      end
-    end
-  end
-
-  defp typespec(body) do
-    quote do
-      @type t :: %__MODULE__{
-              unquote_splicing(typespec_fields(body))
-            }
-    end
-  end
-
-  defp field_validators(body) do
-    Enum.reduce(body, [], fn
-      {:field, _, field}, acc ->
-        [field_validator(field) | acc]
-
-      _other, acc ->
-        acc
-    end)
-  end
-
-  defp field_validator([field_name, type]) do
-    field_validator([field_name, type, []])
-  end
-
-  defp field_validator([field_name, type, options]) do
-    quote do
-      defp validate_field(unquote(to_string(field_name)), value) do
-        case Customs.validate_value(unquote(type), value, unquote(options)) do
-          {:ok, validated_value} ->
-            {:ok, {unquote(field_name), validated_value}}
-
-          :error ->
-            {:error,
-             %TypeError{
-               field: unquote(to_string(field_name)),
-               expected_type: unquote(type),
-               value: value
-             }}
 
           {:error, error} ->
             {:error, error}
         end
       end
+
+      unquote(define_field_validators(data))
     end
   end
 
-  defp typespec_fields(body) do
-    Enum.reduce(body, [], fn
-      {:field, _, [field_name, type | _]}, acc ->
-        [{field_name, spec(type)} | acc]
+  defp define_field_validators(data) do
+    quote do
+      unquote_splicing(Enum.map(data.fields, &define_field_validator/1))
 
-      _other, acc ->
-        acc
+      defp validate_field(invalid_key, _value) do
+        {:error, :bad_key}
+      end
+    end
+  end
+
+  defp define_field_validator(field) do
+    quote do
+      defp validate_field(unquote(to_string(field.name)), value) do
+        with {:ok, casted_value} <- unquote(generate_field_cast(field)).(value),
+             :ok <- unquote(generate_field_validator(field)).(casted_value) do
+          {:ok, {unquote(field.name), casted_value}}
+        else
+          _other ->
+            {:error, :parse_error}
+        end
+      end
+    end
+  end
+
+  defp generate_field_cast(field) do
+    case Keyword.fetch(field.options, :cast) do
+      {:ok, cast} ->
+        quote do
+          fn value ->
+            case unquote(cast).(value) do
+              {:ok, casted_value} ->
+                {:ok, casted_value}
+
+              :error ->
+                :error
+
+              other ->
+                raise "Invalid return from cast for field"
+            end
+          end
+        end
+
+      :error ->
+        quote(do: fn _ -> {:ok, value} end)
+    end
+  end
+
+  defp generate_field_validator(field) do
+    case Keyword.fetch(field.options, :validate) do
+      {:ok, validate} ->
+        quote do
+          fn value ->
+            case unquote(validate).(value) do
+              :ok ->
+                :ok
+
+              :error ->
+                :error
+
+              other ->
+                raise "Invalid return from validate for field"
+            end
+          end
+        end
+
+      :error ->
+        quote do
+          fn value ->
+            unquote(type_derived_validator(field.type)).(value)
+          end
+        end
+    end
+  end
+
+  defp type_derived_validator(type) when is_standard_type(type) do
+    standard_types()
+    |> Keyword.fetch!(type)
+    |> Map.fetch!(:predicate)
+    |> validator_from_predicate()
+  end
+
+  defp type_derived_validator({:array, type}) do
+    quote do
+      &Enum.all?(&1, unquote(type_derived_validator(type)))
+    end
+  end
+
+  defp type_derived_validator({:__aliases__, _, [_]} = module) do
+    quote do
+      fn value ->
+        unquote(module).validate(value)
+      end
+    end
+  end
+
+  defp validator_from_predicate(predicate) do
+    quote do
+      fn value ->
+        if unquote(predicate).(value) do
+          :ok
+        else
+          :error
+        end
+      end
+    end
+  end
+
+  defp define_type(data) do
+    quote do
+      @type t :: %__MODULE__{
+              unquote_splicing(field_types(data))
+            }
+    end
+  end
+
+  defp field_types(data) do
+    Enum.map(data.fields, fn field ->
+      {field.name, field_spec(field)}
     end)
   end
 
-  defp spec(:string) do
+  defp build_struct(data) do
     quote do
-      String.t()
+      @struct_fields unquote(struct_fields(data.fields))
+      @enforce_keys Enum.reject(@struct_fields, &match?({_, _}, &1))
+      defstruct @struct_fields
     end
   end
 
-  defp spec(:float) do
-    quote do
-      float()
+  defp struct_fields(fields) do
+    Enum.reduce(fields, [], fn %Field{name: name, options: options}, acc ->
+      case Keyword.fetch(options, :default) do
+        {:ok, default_value} ->
+          [{name, default_value} | acc]
+
+        :error ->
+          [name | acc]
+      end
+    end)
+  end
+
+  defp field_spec(%Field{type: field_type} = field) do
+    with {:ok, default_value} <- Keyword.fetch(field.options, :default),
+         {:default_type, nil} <-
+           {:default_type, determine_default_type(field_type, default_value)} do
+      quote do
+        unquote(spec(field_type)) | nil
+      end
+    else
+      result when result == :error or result == {:default_type, field_type} ->
+        quote do
+          unquote(spec(field_type))
+        end
+
+      {:default_type, _other_type} ->
+        raise "Field's primary and default type differ #{inspect(field: field)}"
     end
   end
 
-  defp spec(:boolean) do
+  defp determine_default_type(:number, value) when is_number(value), do: :number
+
+  defp determine_default_type({:array, type}, []), do: {:array, type}
+
+  defp determine_default_type(_field_type, value) do
+    determine_type_of_value(value)
+  end
+
+  defp determine_type_of_value(value) do
+    Enum.find_value(standard_types(), :error, fn {name, %{predicate: predicate}} ->
+      if predicate.(value), do: {:ok, name}, else: false
+    end)
+    |> case do
+      {:ok, value} ->
+        value
+
+      :error ->
+        raise "Cannot determine type of value"
+    end
+  end
+
+  defp spec(type) when is_standard_type(type) do
+    standard_types()
+    |> Keyword.fetch!(type)
+    |> Map.fetch!(:spec)
+  end
+
+  defp spec({:array, type}) do
     quote do
-      boolean()
+      [unquote(spec(type))]
     end
   end
 
   defp spec({:__aliases__, _, _module} = module) do
     quote do
       unquote(module).t()
-    end
-  end
-
-  defp nested_decoders(body) do
-    Enum.reduce(body, [], fn
-      {:decoder, _, _} = decoder, acc ->
-        [decoder | acc]
-
-      _other, acc ->
-        acc
-    end)
-  end
-
-  defp struct_fields(body) do
-    Enum.reduce(body, [], fn
-      {:field, _, args}, acc ->
-        [struct_field(args) | acc]
-
-      _other, acc ->
-        acc
-    end)
-  end
-
-  defp struct_field([field_name, _type]), do: field_name
-
-  defp struct_field([field_name, _type, options]) do
-    case Keyword.fetch(options, :default) do
-      {:ok, default_value} ->
-        {field_name, default_value}
-
-      :error ->
-        field_name
     end
   end
 end
