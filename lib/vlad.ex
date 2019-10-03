@@ -26,7 +26,6 @@ defmodule Vlad do
 
         unquote(define_validators(data))
 
-        # TODO maybe hide?
         def __data__, do: unquote(Macro.escape(data))
       end
     end
@@ -35,13 +34,33 @@ defmodule Vlad do
   defmodule ValidateError do
     defexception [:type, :value, :message]
 
-    def new_missing_fields_error(missing_fields) do
-      %__MODULE__{
+    def new_missing_fields_error(missing_fields),
+      do: %__MODULE__{
         type: :missing_fields,
         value: missing_fields,
         message: "Missing fields in params."
       }
-    end
+
+    def new_extraneous_field_error(extraneous_field),
+      do: %__MODULE__{
+        type: :extraneous_field,
+        value: extraneous_field,
+        message: "Extraneous field in params."
+      }
+
+    def new_invalid_value_error(field_name, value),
+      do: %__MODULE__{
+        type: :invalid_field_value,
+        value: {field_name, value},
+        message: "Invalid value for field"
+      }
+
+    def new_cast_failure_error(field_name, value),
+      do: %__MODULE__{
+        type: :cast_failure,
+        value: {field_name, value},
+        message: "Value failed to cast"
+      }
   end
 
   defp define_validators(data) do
@@ -79,8 +98,8 @@ defmodule Vlad do
     quote do
       unquote_splicing(Enum.map(data.fields, &define_field_validator/1))
 
-      defp validate_field(invalid_key, _value) do
-        {:error, :bad_key}
+      defp validate_field(invalid_key, value) do
+        {:error, ValidateError.new_extraneous_field_error(invalid_key)}
       end
     end
   end
@@ -88,12 +107,16 @@ defmodule Vlad do
   defp define_field_validator(field) do
     quote do
       defp validate_field(unquote(to_string(field.name)), value) do
-        with {:ok, casted_value} <- unquote(generate_field_cast(field)).(value),
-             :ok <- unquote(generate_field_validator(field)).(casted_value) do
+        with {:cast, {:ok, casted_value}} <- {:cast, unquote(generate_field_cast(field)).(value)},
+             {:validate, :ok} <-
+               {:validate, unquote(generate_field_validator(field)).(casted_value)} do
           {:ok, {unquote(field.name), casted_value}}
         else
-          _other ->
-            {:error, :parse_error}
+          {:cast, :error} ->
+            {:error, ValidateError.new_cast_failure_error(unquote(field.name), value)}
+
+          {:validate, :error} ->
+            {:error, ValidateError.new_invalid_value_error(unquote(field.name), value)}
         end
       end
     end

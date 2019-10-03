@@ -40,6 +40,8 @@ defmodule Vlad.Types do
 
   defguard is_standard_type(value) when value in @standard_type_keys
 
+  # weirdly have to wrap these in order to allow for refs to these
+  # anonymous functions to be compiled into the module attributes
   defdelegate is_atom(value), to: Kernel
   defdelegate is_integer(value), to: Kernel
   defdelegate is_float(value), to: Kernel
