@@ -1,7 +1,6 @@
 defmodule Vlad do
   alias Vlad.Digest.{Data, Field}
-  alias Vlad.Type
-  alias Vlad.Types
+  alias Vlad.{Error, Type, Types}
 
   @type quoted :: term()
 
@@ -38,10 +37,10 @@ defmodule Vlad do
   defp define_validators(data) do
     quote do
       def validate(%{} = params) do
-        Enum.reduce_while(params, [], fn {key, value}, validated_params ->
-          case validate_field(key, value) do
-            {:ok, {field_name, field_value}} ->
-              {:cont, [{field_name, field_value} | validated_params]}
+        Enum.reduce_while(@all_keys, [], fn field_name, validated_fields ->
+          case validate_field(field_name, params) do
+            {:ok, field_value} ->
+              {:cont, [{field_name, field_value} | validated_fields]}
 
             {:error, error} ->
               {:halt, {:error, error}}
@@ -49,13 +48,7 @@ defmodule Vlad do
         end)
         |> case do
           validated_params when is_list(validated_params) ->
-            case @enforce_keys -- Keyword.keys(validated_params) do
-              [] ->
-                {:ok, struct!(__MODULE__, validated_params)}
-
-              missing_fields ->
-                {:error, Vlad.Error.new_missing_fields_error(missing_fields)}
-            end
+            {:ok, struct!(__MODULE__, validated_params)}
 
           {:error, error} ->
             {:error, error}
@@ -69,30 +62,104 @@ defmodule Vlad do
   @spec define_field_validators(Data.t()) :: quoted()
   defp define_field_validators(data) do
     quote do
-      unquote_splicing(Enum.map(data.fields, &define_field_validator/1))
-
-      defp validate_field(invalid_key, value) do
-        {:error, Vlad.Error.new_extraneous_field_error(invalid_key)}
-      end
+      (unquote_splicing(Enum.map(data.fields, &define_field_validator/1)))
     end
   end
 
   @spec define_field_validator(Field.t()) :: quoted()
   defp define_field_validator(field) do
     quote do
-      defp validate_field(unquote(to_string(field.name)), value) do
-        with {:cast, {:ok, casted_value}} <- {:cast, unquote(generate_field_cast(field)).(value)},
-             {:validate, :ok} <-
-               {:validate, unquote(generate_field_validator(field)).(casted_value)} do
-          {:ok, {unquote(field.name), casted_value}}
-        else
-          {:cast, :error} ->
-            {:error, Vlad.Error.new_cast_failure_error(unquote(field.name), value)}
-
-          {:validate, :error} ->
-            {:error, Vlad.Error.new_invalid_value_error(unquote(field.name), value)}
+      defp validate_field(unquote(field.name), params) do
+        with {:ok, parsed_value} <- parse_field(unquote(field.name), params),
+             {:ok, casted_value} <- cast_field(unquote(field.name), parsed_value),
+             :ok <- do_validate_field(unquote(field.name), casted_value) do
+          {:ok, casted_value}
         end
       end
+
+      unquote(define_parse_field(field))
+      unquote(define_cast_field(field))
+      unquote(define_validate_field(field))
+    end
+  end
+
+  @spec define_parse_field(Field.t()) :: quoted()
+  defp define_parse_field(field) do
+    quote do
+      defp parse_field(unquote(field.name), params) do
+        case unquote(generate_field_parse(field)).(params) do
+          {:ok, value} ->
+            {:ok, value}
+
+          :error ->
+            {:error, Error.new_parse_error(unquote(field.name))}
+        end
+      end
+    end
+  end
+
+  @spec define_cast_field(Field.t()) :: quoted()
+  defp define_cast_field(field) do
+    quote do
+      defp cast_field(unquote(field.name), value) do
+        case unquote(generate_field_cast(field)).(value) do
+          {:ok, casted_value} ->
+            {:ok, casted_value}
+
+          :error ->
+            {:error, Error.new_cast_error(unquote(field.name), value)}
+        end
+      end
+    end
+  end
+
+  @spec define_validate_field(Field.t()) :: quoted()
+  defp define_validate_field(field) do
+    quote do
+      defp do_validate_field(unquote(field.name), value) do
+        case unquote(generate_field_validator(field)).(value) do
+          :ok ->
+            :ok
+
+          :error ->
+            {:error, Error.new_validate_error(unquote(field.name), value)}
+        end
+      end
+    end
+  end
+
+  @spec generate_field_parse(Field.t()) :: quoted()
+  defp generate_field_parse(field) do
+    case Keyword.fetch(field.options, :parse) do
+      {:ok, parse} ->
+        quote do
+          fn params ->
+            case unquote(parse).(params) do
+              {:ok, parsed_value} ->
+                {:ok, parsed_value}
+
+              :error ->
+                :error
+
+              other ->
+                raise "Invalid return from parse for field"
+            end
+          end
+        end
+
+      :error ->
+        case Keyword.fetch(field.options, :default) do
+          {:ok, default_value} ->
+            quote(
+              do: fn params ->
+                with :error <- Map.fetch(params, unquote(to_string(field.name))),
+                     do: {:ok, unquote(default_value)}
+              end
+            )
+
+          :error ->
+            quote(do: &Map.fetch(&1, unquote(to_string(field.name))))
+        end
     end
   end
 
@@ -116,7 +183,7 @@ defmodule Vlad do
         end
 
       :error ->
-        quote(do: fn _ -> {:ok, value} end)
+        quote(do: fn value -> {:ok, value} end)
     end
   end
 
@@ -202,6 +269,7 @@ defmodule Vlad do
     quote do
       @struct_fields unquote(struct_fields(data.fields))
       @enforce_keys Enum.reject(@struct_fields, &match?({_, _}, &1))
+      @all_keys Enum.map(@struct_fields, &with({key, _} <- &1, do: key))
       defstruct @struct_fields
     end
   end
