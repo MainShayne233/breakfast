@@ -5,10 +5,12 @@ defmodule Vlad.Type do
 
   alias Vlad.Types
 
+  @type predicate :: (value :: term() -> boolean())
+
   @type t :: %__MODULE__{
           name: Types.valid_type_def(),
           spec: term(),
-          predicate: (value :: term() -> boolean())
+          predicate: predicate()
         }
 
   @enforce_keys [:name, :spec, :predicate]

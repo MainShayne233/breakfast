@@ -1,7 +1,9 @@
 defmodule Vlad do
-  alias Vlad.Digest.Field
+  alias Vlad.Digest.{Data, Field}
   alias Vlad.Type
   alias Vlad.Types
+
+  @type quoted :: term()
 
   import Types, only: [is_standard_type: 1]
 
@@ -17,6 +19,7 @@ defmodule Vlad do
     |> define_module()
   end
 
+  @spec define_module(Data.t()) :: quoted()
   defp define_module(data) do
     quote do
       defmodule unquote(data.name) do
@@ -31,6 +34,7 @@ defmodule Vlad do
     end
   end
 
+  @spec define_validators(Data.t()) :: quoted()
   defp define_validators(data) do
     quote do
       def validate(%{} = params) do
@@ -62,6 +66,7 @@ defmodule Vlad do
     end
   end
 
+  @spec define_field_validators(Data.t()) :: quoted()
   defp define_field_validators(data) do
     quote do
       unquote_splicing(Enum.map(data.fields, &define_field_validator/1))
@@ -72,6 +77,7 @@ defmodule Vlad do
     end
   end
 
+  @spec define_field_validator(Field.t()) :: quoted()
   defp define_field_validator(field) do
     quote do
       defp validate_field(unquote(to_string(field.name)), value) do
@@ -90,6 +96,7 @@ defmodule Vlad do
     end
   end
 
+  @spec generate_field_cast(Field.t()) :: quoted()
   defp generate_field_cast(field) do
     case Keyword.fetch(field.options, :cast) do
       {:ok, cast} ->
@@ -113,6 +120,7 @@ defmodule Vlad do
     end
   end
 
+  @spec generate_field_validator(Field.t()) :: quoted()
   defp generate_field_validator(field) do
     case Keyword.fetch(field.options, :validate) do
       {:ok, validate} ->
@@ -140,6 +148,7 @@ defmodule Vlad do
     end
   end
 
+  @spec type_derived_validator(Types.valid_type_def()) :: quoted()
   defp type_derived_validator(type) when is_standard_type(type) do
     Types.get_standard_type!(type).predicate
     |> validator_from_predicate()
@@ -159,6 +168,7 @@ defmodule Vlad do
     end
   end
 
+  @spec validator_from_predicate(Type.predicate()) :: quoted()
   defp validator_from_predicate(predicate) do
     quote do
       fn value ->
@@ -171,6 +181,7 @@ defmodule Vlad do
     end
   end
 
+  @spec define_type(Data.t()) :: quoted()
   defp define_type(data) do
     quote do
       @type t :: %__MODULE__{
@@ -179,12 +190,14 @@ defmodule Vlad do
     end
   end
 
+  @spec field_types(Data.t()) :: quoted()
   defp field_types(data) do
     Enum.map(data.fields, fn field ->
       {field.name, field_spec(field)}
     end)
   end
 
+  @spec build_struct(Data.t()) :: quoted()
   defp build_struct(data) do
     quote do
       @struct_fields unquote(struct_fields(data.fields))
@@ -193,6 +206,7 @@ defmodule Vlad do
     end
   end
 
+  @spec struct_fields([Field.t()]) :: [atom() | {atom(), term()}]
   defp struct_fields(fields) do
     Enum.reduce(fields, [], fn %Field{name: name, options: options}, acc ->
       case Keyword.fetch(options, :default) do
@@ -205,6 +219,7 @@ defmodule Vlad do
     end)
   end
 
+  @spec field_spec(Field.t()) :: quoted() | no_return()
   defp field_spec(%Field{type: field_type} = field) do
     with {:ok, default_value} <- Keyword.fetch(field.options, :default),
          {:default_type, nil} <-
@@ -223,6 +238,7 @@ defmodule Vlad do
     end
   end
 
+  @spec determine_default_type(Types.valid_type_def(), term()) :: Types.valid_type_def()
   defp determine_default_type(:number, value) when is_number(value), do: :number
 
   defp determine_default_type({:array, type}, []), do: {:array, type}
@@ -231,6 +247,7 @@ defmodule Vlad do
     determine_type_of_value(value)
   end
 
+  @spec determine_type_of_value(term()) :: Types.valid_type_def()
   defp determine_type_of_value(value) do
     Enum.find_value(Types.standard_types(), :error, fn %Type{name: name, predicate: predicate} ->
       if predicate.(value), do: {:ok, name}, else: false
@@ -244,6 +261,7 @@ defmodule Vlad do
     end
   end
 
+  @spec spec(Types.valid_type_def()) :: quoted()
   defp spec(type) when is_standard_type(type) do
     Types.get_standard_type!(type).spec
   end
