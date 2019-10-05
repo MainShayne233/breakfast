@@ -3,7 +3,7 @@ defmodule Vlad do
   alias Vlad.Type
   alias Vlad.Types
 
-  import Types, only: [standard_types: 0, is_standard_type: 1]
+  import Types, only: [is_standard_type: 1]
 
   defmacro __using__(_) do
     quote do
@@ -232,7 +232,7 @@ defmodule Vlad do
   end
 
   defp determine_type_of_value(value) do
-    Enum.find_value(standard_types(), :error, fn %Type{name: name, predicate: predicate} ->
+    Enum.find_value(Types.standard_types(), :error, fn %Type{name: name, predicate: predicate} ->
       if predicate.(value), do: {:ok, name}, else: false
     end)
     |> case do

@@ -16,10 +16,22 @@ defmodule Vlad.Types do
 
   @standard_type_names Map.keys(@standard_types_table)
 
-  defmacro standard_types, do: Macro.escape(@standard_types)
+  @doc """
+  Returns the static list of standard types
+  """
+  @spec standard_types :: [Type.t()]
+  def standard_types, do: @standard_types
 
+  @doc """
+  A guard to check if the given name corresponds to a standard type.
+  """
+  @spec is_standard_type(value :: atom()) :: term()
   defguard is_standard_type(value) when value in @standard_type_names
 
+  @doc """
+  Fetches the standard type for the given name.
+  """
+  @spec get_standard_type!(name :: atom()) :: Type.t() | no_return()
   def get_standard_type!(name), do: Map.fetch!(@standard_types_table, name)
 
   # weirdly have to wrap these in order to allow for refs to these
