@@ -1,6 +1,20 @@
 defmodule Vlad.Types do
   alias Vlad.Type
 
+  @type quoted_module :: {:__aliases__, Keyword.t(), term()}
+
+  @type valid_type_def ::
+          :integer
+          | :float
+          | :number
+          | :string
+          | :boolean
+          | nil
+          | :atom
+          | :map
+          | {:array, term()}
+          | quoted_module()
+
   @standard_types [
     %Type{name: :integer, spec: quote(do: integer()), predicate: &__MODULE__.is_integer/1},
     %Type{name: :float, spec: quote(do: float()), predicate: &__MODULE__.is_float/1},

@@ -3,8 +3,10 @@ defmodule Vlad.Type do
   Defines the Vlad.Type struct.
   """
 
+  alias Vlad.Types
+
   @type t :: %__MODULE__{
-          name: atom(),
+          name: Types.valid_type_def(),
           spec: term(),
           predicate: (value :: term() -> boolean())
         }
