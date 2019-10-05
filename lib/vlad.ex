@@ -1,7 +1,9 @@
 defmodule Vlad do
-  import Vlad.Types, only: [standard_types: 0, is_standard_type: 1]
-
   alias Vlad.Digest.Field
+  alias Vlad.Type
+  alias Vlad.Types
+
+  import Types, only: [standard_types: 0, is_standard_type: 1]
 
   defmacro __using__(_) do
     quote do
@@ -139,9 +141,7 @@ defmodule Vlad do
   end
 
   defp type_derived_validator(type) when is_standard_type(type) do
-    standard_types()
-    |> Keyword.fetch!(type)
-    |> Map.fetch!(:predicate)
+    Types.get_standard_type!(type).predicate
     |> validator_from_predicate()
   end
 
@@ -232,7 +232,7 @@ defmodule Vlad do
   end
 
   defp determine_type_of_value(value) do
-    Enum.find_value(standard_types(), :error, fn {name, %{predicate: predicate}} ->
+    Enum.find_value(standard_types(), :error, fn %Type{name: name, predicate: predicate} ->
       if predicate.(value), do: {:ok, name}, else: false
     end)
     |> case do
@@ -245,9 +245,7 @@ defmodule Vlad do
   end
 
   defp spec(type) when is_standard_type(type) do
-    standard_types()
-    |> Keyword.fetch!(type)
-    |> Map.fetch!(:spec)
+    Types.get_standard_type!(type).spec
   end
 
   defp spec({:array, type}) do
