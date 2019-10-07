@@ -29,11 +29,11 @@ defmodule BreakfastTest do
   end
 
   test "should succeed for valid params", %{params: params} do
-    assert match?({:ok, %User{}}, User.validate(params))
+    assert match?({:ok, %User{}}, User.decode(params))
   end
 
   test "should result in a parse error if a field is missing", %{params: params} do
-    assert User.validate(Map.delete(params, "age")) ==
+    assert User.decode(Map.delete(params, "age")) ==
              {:error,
               %Breakfast.Error{
                 message: "Could not parse field from params",
@@ -45,7 +45,7 @@ defmodule BreakfastTest do
   test "should result in a parse error if the custom parse function returns :error", %{
     params: params
   } do
-    assert User.validate(Map.put(params, "UserStatus", "Canclled")) ==
+    assert User.decode(Map.put(params, "UserStatus", "Canclled")) ==
              {:error,
               %Breakfast.Error{
                 message: "Could not parse field from params",
@@ -58,12 +58,12 @@ defmodule BreakfastTest do
     params: params
   } do
     assert assert_raise(RuntimeError, fn ->
-             User.validate(Map.put(params, "UserStatus", "Approved"))
+             User.decode(Map.put(params, "UserStatus", "Approved"))
            end) == %RuntimeError{message: "Invalid return from parse for field"}
   end
 
   test "should complain about invalid value for field", %{params: params} do
-    assert User.validate(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
+    assert User.decode(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
              {:error,
               %Breakfast.Error{
                 message: "Invalid value for field",
@@ -73,7 +73,7 @@ defmodule BreakfastTest do
   end
 
   test "should complain about a bad cast", %{params: params} do
-    assert User.validate(Map.put(params, "age", :"10")) ==
+    assert User.decode(Map.put(params, "age", :"10")) ==
              {:error,
               %Breakfast.Error{
                 message: "Value failed to cast",

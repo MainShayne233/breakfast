@@ -36,9 +36,9 @@ defmodule Breakfast do
   @spec define_validators(Data.t()) :: quoted()
   defp define_validators(data) do
     quote do
-      def validate(%{} = params) do
+      def decode(%{} = params) do
         Enum.reduce_while(@all_keys, [], fn field_name, validated_fields ->
-          case validate_field(field_name, params) do
+          case decode_field(field_name, params) do
             {:ok, field_value} ->
               {:cont, [{field_name, field_value} | validated_fields]}
 
@@ -69,10 +69,10 @@ defmodule Breakfast do
   @spec define_field_validator(Field.t()) :: quoted()
   defp define_field_validator(field) do
     quote do
-      defp validate_field(unquote(field.name), params) do
+      defp decode_field(unquote(field.name), params) do
         with {:ok, parsed_value} <- parse_field(unquote(field.name), params),
              {:ok, casted_value} <- cast_field(unquote(field.name), parsed_value),
-             :ok <- do_validate_field(unquote(field.name), casted_value) do
+             :ok <- validate_field(unquote(field.name), casted_value) do
           {:ok, casted_value}
         end
       end
@@ -116,7 +116,7 @@ defmodule Breakfast do
   @spec define_validate_field(Field.t()) :: quoted()
   defp define_validate_field(field) do
     quote do
-      defp do_validate_field(unquote(field.name), value) do
+      defp validate_field(unquote(field.name), value) do
         case unquote(generate_field_validator(field)).(value) do
           :ok ->
             :ok
