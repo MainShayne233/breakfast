@@ -1,6 +1,6 @@
-defmodule Vlad.Digest do
+defmodule Breakfast.Digest do
   defmodule Field do
-    alias Vlad.Types
+    alias Breakfast.Types
 
     @type t :: %__MODULE__{
             name: atom(),

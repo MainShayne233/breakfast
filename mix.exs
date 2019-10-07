@@ -1,9 +1,9 @@
-defmodule Vlad.MixProject do
+defmodule Breakfast.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :vlad,
+      app: :breakfast,
       version: "0.1.0",
       elixir: "~> 1.10-dev",
       start_permanent: Mix.env() == :prod,
@@ -18,7 +18,7 @@ defmodule Vlad.MixProject do
 
   defp dialyzer do
     [
-      plt_file: {:no_warn, "priv/plts/vlad.plt"}
+      plt_file: {:no_warn, "priv/plts/breakfast.plt"}
     ]
   end
 

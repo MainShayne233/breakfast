@@ -1,6 +1,6 @@
-defmodule Vlad do
-  alias Vlad.Digest.{Data, Field}
-  alias Vlad.{Error, Type, Types}
+defmodule Breakfast do
+  alias Breakfast.Digest.{Data, Field}
+  alias Breakfast.{Error, Type, Types}
 
   @type quoted :: term()
 
@@ -8,13 +8,13 @@ defmodule Vlad do
 
   defmacro __using__(_) do
     quote do
-      import Vlad, only: [defdata: 2]
+      import Breakfast, only: [defdata: 2]
     end
   end
 
   defmacro defdata(name, do: block) do
     name
-    |> Vlad.Digest.digest_data(block)
+    |> Breakfast.Digest.digest_data(block)
     |> define_module()
   end
 

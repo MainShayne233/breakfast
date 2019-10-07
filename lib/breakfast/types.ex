@@ -1,5 +1,5 @@
-defmodule Vlad.Types do
-  alias Vlad.Type
+defmodule Breakfast.Types do
+  alias Breakfast.Type
 
   @type quoted_module :: {:__aliases__, Keyword.t(), term()}
 

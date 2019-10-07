@@ -1,9 +1,9 @@
-defmodule Vlad.Type do
+defmodule Breakfast.Type do
   @moduledoc """
-  Defines the Vlad.Type struct.
+  Defines the Breakfast.Type struct.
   """
 
-  alias Vlad.Types
+  alias Breakfast.Types
 
   @type predicate :: (value :: term() -> boolean())
 

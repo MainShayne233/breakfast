@@ -1,8 +1,8 @@
-use Vlad
+use Breakfast
 
 defdata User do
   field(:email, :string)
-  field(:age, :integer, cast: &VladTest.int_from_string/1)
+  field(:age, :integer, cast: &BreakfastTest.int_from_string/1)
   field(:timezone, :string, default: "US")
 
   field(:status, :string,
@@ -14,9 +14,9 @@ defdata User do
   )
 end
 
-defmodule VladTest do
+defmodule BreakfastTest do
   use ExUnit.Case
-  doctest Vlad
+  doctest Breakfast
 
   setup do
     params = %{
@@ -35,7 +35,7 @@ defmodule VladTest do
   test "should result in a parse error if a field is missing", %{params: params} do
     assert User.validate(Map.delete(params, "age")) ==
              {:error,
-              %Vlad.Error{
+              %Breakfast.Error{
                 message: "Could not parse field from params",
                 type: :parse_error,
                 value: :age
@@ -47,7 +47,7 @@ defmodule VladTest do
   } do
     assert User.validate(Map.put(params, "UserStatus", "Canclled")) ==
              {:error,
-              %Vlad.Error{
+              %Breakfast.Error{
                 message: "Could not parse field from params",
                 type: :parse_error,
                 value: :status
@@ -65,7 +65,7 @@ defmodule VladTest do
   test "should complain about invalid value for field", %{params: params} do
     assert User.validate(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
              {:error,
-              %Vlad.Error{
+              %Breakfast.Error{
                 message: "Invalid value for field",
                 type: :validate_error,
                 value: {:email, :shayneAThotmailDOTcom}
@@ -75,7 +75,7 @@ defmodule VladTest do
   test "should complain about a bad cast", %{params: params} do
     assert User.validate(Map.put(params, "age", :"10")) ==
              {:error,
-              %Vlad.Error{
+              %Breakfast.Error{
                 message: "Value failed to cast",
                 type: :cast_error,
                 value: {:age, :"10"}

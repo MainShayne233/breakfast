@@ -1,4 +1,4 @@
-defmodule Vlad.Error do
+defmodule Breakfast.Error do
   defexception [:type, :value, :message]
 
   def new_parse_error(fieldname),
