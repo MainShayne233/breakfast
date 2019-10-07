@@ -1,7 +1,6 @@
 defmodule Vlad do
   alias Vlad.Digest.{Data, Field}
-  alias Vlad.Type
-  alias Vlad.Types
+  alias Vlad.{Error, Type, Types}
 
   @type quoted :: term()
 
@@ -47,22 +46,14 @@ defmodule Vlad do
               {:halt, {:error, error}}
           end
         end)
+        |> case do
+          validated_params when is_list(validated_params) ->
+            {:ok, struct!(__MODULE__, validated_params)}
+
+          {:error, error} ->
+            {:error, error}
+        end
       end
-
-      #   |> case do
-      #     validated_params when is_list(validated_params) ->
-      #       case @enforce_keys -- Keyword.keys(validated_params) do
-      #         [] ->
-      #           {:ok, struct!(__MODULE__, validated_params)}
-
-      #         missing_fields ->
-      #           {:error, Vlad.Error.new_missing_fields_error(missing_fields)}
-      #       end
-
-      #     {:error, error} ->
-      #       {:error, error}
-      #   end
-      # end
 
       unquote(define_field_validators(data))
     end
@@ -78,14 +69,60 @@ defmodule Vlad do
   @spec define_field_validator(Field.t()) :: quoted()
   defp define_field_validator(field) do
     quote do
-      defp validate_field(fieldname, params) do
-        with {:ok, parsed_value} <-
-               unquote(generate_field_parse(field)).(params),
-             {:ok, casted_value} <-
-               unquote(generate_field_cast(field)).(parsed_value),
-             :ok <-
-               unquote(generate_field_validator(field)).(casted_value) do
+      defp validate_field(unquote(field.name), params) do
+        with {:ok, parsed_value} <- parse_field(unquote(field.name), params),
+             {:ok, casted_value} <- cast_field(unquote(field.name), parsed_value),
+             :ok <- do_validate_field(unquote(field.name), casted_value) do
           {:ok, casted_value}
+        end
+      end
+
+      unquote(define_parse_field(field))
+      unquote(define_cast_field(field))
+      unquote(define_validate_field(field))
+    end
+  end
+
+  @spec define_parse_field(Field.t()) :: quoted()
+  defp define_parse_field(field) do
+    quote do
+      defp parse_field(unquote(field.name), params) do
+        case unquote(generate_field_parse(field)).(params) do
+          {:ok, value} ->
+            {:ok, value}
+
+          :error ->
+            {:error, Error.new_parse_error(unquote(field.name))}
+        end
+      end
+    end
+  end
+
+  @spec define_cast_field(Field.t()) :: quoted()
+  defp define_cast_field(field) do
+    quote do
+      defp cast_field(unquote(field.name), value) do
+        case unquote(generate_field_cast(field)).(value) do
+          {:ok, casted_value} ->
+            {:ok, casted_value}
+
+          :error ->
+            {:error, Error.new_cast_error(unquote(field.name), value)}
+        end
+      end
+    end
+  end
+
+  @spec define_validate_field(Field.t()) :: quoted()
+  defp define_validate_field(field) do
+    quote do
+      defp do_validate_field(unquote(field.name), value) do
+        case unquote(generate_field_validator(field)).(value) do
+          :ok ->
+            :ok
+
+          :error ->
+            {:error, Error.new_validate_error(unquote(field.name), value)}
         end
       end
     end
@@ -93,29 +130,36 @@ defmodule Vlad do
 
   @spec generate_field_parse(Field.t()) :: quoted()
   defp generate_field_parse(field) do
-    parser = Keyword.get(field.options, :parser, &Map.fetch(&1, Atom.to_string(field.name)))
+    case Keyword.fetch(field.options, :parse) do
+      {:ok, parse} ->
+        quote do
+          fn params ->
+            case unquote(parse).(params) do
+              {:ok, parsed_value} ->
+                {:ok, parsed_value}
 
-    quote do
-      fn params ->
-        case unquote(parser).(params) do
-          {:ok, value} ->
-            value
+              :error ->
+                :error
 
-          :error ->
-            unquote(
-              case Keyword.fetch(field.options, :default) do
-                {:ok, default} ->
-                  {:ok, default}
+              other ->
+                raise "Invalid return from parse for field"
+            end
+          end
+        end
 
-                :error ->
-                  {:error, Error.new_parse_error(field.name)}
+      :error ->
+        case Keyword.fetch(field.options, :default) do
+          {:ok, default_value} ->
+            quote(
+              do: fn params ->
+                with :error <- Map.fetch(params, unquote(to_string(field.name))),
+                     do: {:ok, unquote(default_value)}
               end
             )
 
-          _other ->
-            raise "Invalid return from parse for field"
+          :error ->
+            quote(do: &Map.fetch(&1, unquote(to_string(field.name))))
         end
-      end
     end
   end
 
@@ -139,7 +183,7 @@ defmodule Vlad do
         end
 
       :error ->
-        quote(do: fn _ -> {:ok, value} end)
+        quote(do: fn value -> {:ok, value} end)
     end
   end
 

@@ -4,55 +4,80 @@ defdata User do
   field(:email, :string)
   field(:age, :integer, cast: &VladTest.int_from_string/1)
   field(:timezone, :string, default: "US")
+
+  field(:status, :string,
+    parse: fn
+      %{"UserStatus" => "Pending"} -> {:ok, "Pending"}
+      %{"UserStatus" => "Approved"} -> "Approved"
+      _other -> :error
+    end
+  )
 end
 
 defmodule VladTest do
   use ExUnit.Case
   doctest Vlad
 
-  test "should require all fields that were not defined with a default value" do
-    assert User.validate(%{}) ==
-             {:error,
-              %Vlad.Error{
-                message: "Missing fields in params.",
-                type: :missing_fields,
-                value: [:email, :age]
-              }}
+  setup do
+    params = %{
+      "email" => "shayne@hotmail.com",
+      "age" => "10",
+      "UserStatus" => "Pending"
+    }
 
-    assert User.validate(%{"email" => "shayne@hotmail.com", "age" => "10"}) ==
-             {:ok, struct!(User, email: "shayne@hotmail.com", timezone: "US", age: 10)}
+    %{params: params}
   end
 
-  test "should complain about extraneous fields being provided" do
-    assert User.validate(%{
-             "email" => "shayne@hotmail.com",
-             "age" => "10",
-             "birthday" => "10/09/95"
-           }) ==
+  test "should succeed for valid params", %{params: params} do
+    assert match?({:ok, %User{}}, User.validate(params))
+  end
+
+  test "should result in a parse error if a field is missing", %{params: params} do
+    assert User.validate(Map.delete(params, "age")) ==
              {:error,
               %Vlad.Error{
-                message: "Extraneous field in params.",
-                type: :extraneous_field,
-                value: "birthday"
+                message: "Could not parse field from params",
+                type: :parse_error,
+                value: :age
               }}
   end
 
-  test "should complain about invalid value for field" do
-    assert User.validate(%{"email" => :shayneAThotmailDOTcom}) ==
+  test "should result in a parse error if the custom parse function returns :error", %{
+    params: params
+  } do
+    assert User.validate(Map.put(params, "UserStatus", "Canclled")) ==
+             {:error,
+              %Vlad.Error{
+                message: "Could not parse field from params",
+                type: :parse_error,
+                value: :status
+              }}
+  end
+
+  test "should raise a runtime exception if the custom parse returns a bad value", %{
+    params: params
+  } do
+    assert assert_raise(RuntimeError, fn ->
+             User.validate(Map.put(params, "UserStatus", "Approved"))
+           end) == %RuntimeError{message: "Invalid return from parse for field"}
+  end
+
+  test "should complain about invalid value for field", %{params: params} do
+    assert User.validate(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
              {:error,
               %Vlad.Error{
                 message: "Invalid value for field",
-                type: :invalid_field_value,
+                type: :validate_error,
                 value: {:email, :shayneAThotmailDOTcom}
               }}
   end
 
-  test "should complain about a bad cast" do
-    assert User.validate(%{"email" => "shayne@hotmail.com", "age" => :"10"}) ==
+  test "should complain about a bad cast", %{params: params} do
+    assert User.validate(Map.put(params, "age", :"10")) ==
              {:error,
               %Vlad.Error{
                 message: "Value failed to cast",
-                type: :cast_failure,
+                type: :cast_error,
                 value: {:age, :"10"}
               }}
   end
