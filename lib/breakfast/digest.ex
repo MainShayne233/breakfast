@@ -1,10 +1,10 @@
 defmodule Breakfast.Digest do
   defmodule Field do
-    alias Breakfast.Types
+    alias Breakfast.Type
 
     @type t :: %__MODULE__{
             name: atom(),
-            type: Types.valid_type_def(),
+            type: Type.spec(),
             options: Keyword.t()
           }
 

@@ -1,10 +1,8 @@
 defmodule Breakfast do
   alias Breakfast.Digest.{Data, Field}
-  alias Breakfast.{Error, Type, Types}
+  alias Breakfast.{Error, Type}
 
   @type quoted :: term()
-
-  import Types, only: [is_standard_type: 1]
 
   defmacro __using__(_) do
     quote do
@@ -215,23 +213,14 @@ defmodule Breakfast do
     end
   end
 
-  @spec type_derived_validator(Types.valid_type_def()) :: quoted()
-  defp type_derived_validator(type) when is_standard_type(type) do
-    Types.get_standard_type!(type).predicate
-    |> validator_from_predicate()
-  end
+  @spec type_derived_validator(Type.spec()) :: quoted()
+  defp type_derived_validator(type) do
+    case Type.fetch_predicate(type) do
+      {:ok, predicate} ->
+        validator_from_predicate(predicate)
 
-  defp type_derived_validator({:array, type}) do
-    quote do
-      &Enum.all?(&1, unquote(type_derived_validator(type)))
-    end
-  end
-
-  defp type_derived_validator({:__aliases__, _, [_]} = module) do
-    quote do
-      fn value ->
-        unquote(module).validate(value)
-      end
+      :error ->
+        raise "Cannot infer a validator for custom type: #{inspect(type)}"
     end
   end
 
@@ -260,7 +249,7 @@ defmodule Breakfast do
   @spec field_types(Data.t()) :: quoted()
   defp field_types(data) do
     Enum.map(data.fields, fn field ->
-      {field.name, field_spec(field)}
+      {field.name, field.type}
     end)
   end
 
@@ -285,64 +274,5 @@ defmodule Breakfast do
           [name | acc]
       end
     end)
-  end
-
-  @spec field_spec(Field.t()) :: quoted() | no_return()
-  defp field_spec(%Field{type: field_type} = field) do
-    with {:ok, default_value} <- Keyword.fetch(field.options, :default),
-         {:default_type, nil} <-
-           {:default_type, determine_default_type(field_type, default_value)} do
-      quote do
-        unquote(spec(field_type)) | nil
-      end
-    else
-      result when result == :error or result == {:default_type, field_type} ->
-        quote do
-          unquote(spec(field_type))
-        end
-
-      {:default_type, _other_type} ->
-        raise "Field's primary and default type differ #{inspect(field: field)}"
-    end
-  end
-
-  @spec determine_default_type(Types.valid_type_def(), term()) :: Types.valid_type_def()
-  defp determine_default_type(:number, value) when is_number(value), do: :number
-
-  defp determine_default_type({:array, type}, []), do: {:array, type}
-
-  defp determine_default_type(_field_type, value) do
-    determine_type_of_value(value)
-  end
-
-  @spec determine_type_of_value(term()) :: Types.valid_type_def()
-  defp determine_type_of_value(value) do
-    Enum.find_value(Types.standard_types(), :error, fn %Type{name: name, predicate: predicate} ->
-      if predicate.(value), do: {:ok, name}, else: false
-    end)
-    |> case do
-      {:ok, value} ->
-        value
-
-      :error ->
-        raise "Cannot determine type of value"
-    end
-  end
-
-  @spec spec(Types.valid_type_def()) :: quoted()
-  defp spec(type) when is_standard_type(type) do
-    Types.get_standard_type!(type).spec
-  end
-
-  defp spec({:array, type}) do
-    quote do
-      [unquote(spec(type))]
-    end
-  end
-
-  defp spec({:__aliases__, _, _module} = module) do
-    quote do
-      unquote(module).t()
-    end
   end
 end

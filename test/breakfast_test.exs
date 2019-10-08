@@ -1,21 +1,33 @@
-use Breakfast
+defmodule Client do
+  use Breakfast
 
-defdata User do
-  field(:email, :string)
-  field(:age, :integer, cast: &BreakfastTest.int_from_string/1)
-  field(:timezone, :string, default: "US")
+  defdata User do
+    field(:email, String.t())
+    field(:age, integer(), cast: &Client.int_from_string/1)
+    field(:timezone, String.t(), default: "US")
 
-  field(:status, :string,
-    parse: fn
-      %{"UserStatus" => "Pending"} -> {:ok, "Pending"}
-      %{"UserStatus" => "Approved"} -> "Approved"
+    field(:status, String.t(),
+      parse: fn
+        %{"UserStatus" => "Pending"} -> {:ok, "Pending"}
+        %{"UserStatus" => "Approved"} -> "Approved"
+        _other -> :error
+      end
+    )
+  end
+
+  def int_from_string(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {int, ""} -> {:ok, int}
       _other -> :error
     end
-  )
+  end
+
+  def int_from_string(_), do: :error
 end
 
 defmodule BreakfastTest do
   use ExUnit.Case
+  alias Client.User
   doctest Breakfast
 
   setup do
@@ -81,13 +93,4 @@ defmodule BreakfastTest do
                 value: {:age, :"10"}
               }}
   end
-
-  def int_from_string(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> {:ok, int}
-      _other -> :error
-    end
-  end
-
-  def int_from_string(_), do: :error
 end
