@@ -86,7 +86,7 @@ defmodule Breakfast do
   end
 
   @spec field_types(Data.t()) :: quoted()
-  defp field_types(data), do: for field <- data.fields, do: {field.name, field.type}
+  defp field_types(data), do: for(field <- data.fields, do: {field.name, field.type})
 
   @spec build_struct(Data.t()) :: quoted()
   defp build_struct(data) do
