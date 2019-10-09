@@ -21,6 +21,12 @@ defmodule Breakfast.Type do
   }
 
   @spec fetch_predicate(spec()) :: {:ok, predicate()} | :error
+  def fetch_predicate([list_item_spec]) do
+    with {:ok, predicate} <- fetch_predicate(list_item_spec) do
+      {:ok, quote(do: fn list -> Enum.all?(&1, unquote(predicate)) end)}
+    end
+  end
+
   def fetch_predicate(spec) do
     with {:ok, type} <- type_from_spec(spec),
          %{^type => %{predicate: predicate}} <- @standard_types_lookup do
@@ -34,6 +40,7 @@ defmodule Breakfast.Type do
   @spec type_from_spec(spec()) :: {:ok, type()}
   defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: {:ok, :string}
   defp type_from_spec({:integer, _, []}), do: {:ok, :integer}
+
   defp type_from_spec(_other), do: :error
 
   # weirdly have to wrap these in order to allow for refs to these

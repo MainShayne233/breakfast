@@ -5,6 +5,7 @@ defmodule Client do
     field(:email, String.t())
     field(:age, integer(), cast: &Client.int_from_string/1)
     field(:timezone, String.t(), default: "US")
+    field(:roles, [String.t()])
 
     field(:status, String.t(),
       parse: fn
@@ -34,7 +35,8 @@ defmodule BreakfastTest do
     params = %{
       "email" => "shayne@hotmail.com",
       "age" => "10",
-      "UserStatus" => "Pending"
+      "UserStatus" => "Pending",
+      "roles" => ["user", "admin"]
     }
 
     %{params: params}
