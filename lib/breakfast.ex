@@ -1,6 +1,5 @@
 defmodule Breakfast do
   alias Breakfast.Digest.{Data, Field}
-  alias Breakfast.{Error, Type}
 
   @type quoted :: term()
 
@@ -69,118 +68,9 @@ defmodule Breakfast do
     quote do
       defp decode_field(unquote(field.name), params) do
         with {:ok, parsed_value} <- unquote(field.parse).(params),
-             {:ok, casted_value} <- cast_field(unquote(field.name), parsed_value),
-             :ok <- validate_field(unquote(field.name), casted_value) do
+             {:ok, casted_value} <- unquote(field.cast).(parsed_value),
+             :ok <- unquote(field.validate).(casted_value) do
           {:ok, casted_value}
-        end
-      end
-
-      unquote(define_cast_field(field))
-      unquote(define_validate_field(field))
-    end
-  end
-
-  @spec define_cast_field(Field.t()) :: quoted()
-  defp define_cast_field(field) do
-    quote do
-      defp cast_field(unquote(field.name), value) do
-        case unquote(generate_field_cast(field)).(value) do
-          {:ok, casted_value} ->
-            {:ok, casted_value}
-
-          :error ->
-            {:error, Error.new_cast_error(unquote(field.name), value)}
-        end
-      end
-    end
-  end
-
-  @spec define_validate_field(Field.t()) :: quoted()
-  defp define_validate_field(field) do
-    quote do
-      defp validate_field(unquote(field.name), value) do
-        case unquote(generate_field_validator(field)).(value) do
-          :ok ->
-            :ok
-
-          :error ->
-            {:error, Error.new_validate_error(unquote(field.name), value)}
-        end
-      end
-    end
-  end
-
-  @spec generate_field_cast(Field.t()) :: quoted()
-  defp generate_field_cast(field) do
-    case Keyword.fetch(field.options, :cast) do
-      {:ok, cast} ->
-        quote do
-          fn value ->
-            case unquote(cast).(value) do
-              {:ok, casted_value} ->
-                {:ok, casted_value}
-
-              :error ->
-                :error
-
-              other ->
-                raise "Invalid return from cast for field"
-            end
-          end
-        end
-
-      :error ->
-        quote(do: fn value -> {:ok, value} end)
-    end
-  end
-
-  @spec generate_field_validator(Field.t()) :: quoted()
-  defp generate_field_validator(field) do
-    case Keyword.fetch(field.options, :validate) do
-      {:ok, validate} ->
-        quote do
-          fn value ->
-            case unquote(validate).(value) do
-              :ok ->
-                :ok
-
-              :error ->
-                :error
-
-              other ->
-                raise "Invalid return from validate for field"
-            end
-          end
-        end
-
-      :error ->
-        quote do
-          fn value ->
-            unquote(type_derived_validator(field.type)).(value)
-          end
-        end
-    end
-  end
-
-  @spec type_derived_validator(Type.spec()) :: quoted()
-  defp type_derived_validator(type) do
-    case Type.fetch_predicate(type) do
-      {:ok, predicate} ->
-        validator_from_predicate(predicate)
-
-      :error ->
-        raise "Cannot infer a validator for custom type: #{inspect(type)}"
-    end
-  end
-
-  @spec validator_from_predicate(Type.predicate()) :: quoted()
-  defp validator_from_predicate(predicate) do
-    quote do
-      fn value ->
-        if unquote(predicate).(value) do
-          :ok
-        else
-          :error
         end
       end
     end
