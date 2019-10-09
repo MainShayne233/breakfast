@@ -71,7 +71,10 @@ defmodule BreakfastTest do
   } do
     assert assert_raise(RuntimeError, fn ->
              User.decode(Map.put(params, "UserStatus", "Approved"))
-           end) == %RuntimeError{message: "Invalid return from parse for field"}
+           end) == %RuntimeError{
+             message:
+               "Bad return from parse from field: status. Expected {:ok, term()} | :error, got: \"Approved\""
+           }
   end
 
   test "should complain about invalid value for field", %{params: params} do

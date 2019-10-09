@@ -68,31 +68,15 @@ defmodule Breakfast do
   defp define_field_validator(field) do
     quote do
       defp decode_field(unquote(field.name), params) do
-        with {:ok, parsed_value} <- parse_field(unquote(field.name), params),
+        with {:ok, parsed_value} <- unquote(field.parse).(params),
              {:ok, casted_value} <- cast_field(unquote(field.name), parsed_value),
              :ok <- validate_field(unquote(field.name), casted_value) do
           {:ok, casted_value}
         end
       end
 
-      unquote(define_parse_field(field))
       unquote(define_cast_field(field))
       unquote(define_validate_field(field))
-    end
-  end
-
-  @spec define_parse_field(Field.t()) :: quoted()
-  defp define_parse_field(field) do
-    quote do
-      defp parse_field(unquote(field.name), params) do
-        case unquote(generate_field_parse(field)).(params) do
-          {:ok, value} ->
-            {:ok, value}
-
-          :error ->
-            {:error, Error.new_parse_error(unquote(field.name))}
-        end
-      end
     end
   end
 
@@ -123,41 +107,6 @@ defmodule Breakfast do
             {:error, Error.new_validate_error(unquote(field.name), value)}
         end
       end
-    end
-  end
-
-  @spec generate_field_parse(Field.t()) :: quoted()
-  defp generate_field_parse(field) do
-    case Keyword.fetch(field.options, :parse) do
-      {:ok, parse} ->
-        quote do
-          fn params ->
-            case unquote(parse).(params) do
-              {:ok, parsed_value} ->
-                {:ok, parsed_value}
-
-              :error ->
-                :error
-
-              other ->
-                raise "Invalid return from parse for field"
-            end
-          end
-        end
-
-      :error ->
-        case Keyword.fetch(field.options, :default) do
-          {:ok, default_value} ->
-            quote(
-              do: fn params ->
-                with :error <- Map.fetch(params, unquote(to_string(field.name))),
-                     do: {:ok, unquote(default_value)}
-              end
-            )
-
-          :error ->
-            quote(do: &Map.fetch(&1, unquote(to_string(field.name))))
-        end
     end
   end
 
