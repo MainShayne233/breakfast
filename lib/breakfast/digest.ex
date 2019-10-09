@@ -127,13 +127,7 @@ defmodule Breakfast.Digest do
 
   defp validator_from_predicate(predicate) do
     quote do
-      fn value ->
-        if unquote(predicate).(value) do
-          :ok
-        else
-          :error
-        end
-      end
+      &if(unquote(predicate).(&1), do: :ok, else: :error)
     end
   end
 
