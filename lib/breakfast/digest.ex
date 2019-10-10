@@ -32,7 +32,7 @@ defmodule Breakfast.Digest do
     defstruct @enforce_keys ++ @keys_with_defaults
   end
 
-  alias Breakfast.{Error, Type}
+  alias Breakfast.{DecodeError, Type}
 
   @type block :: {:__block__, term(), list()}
 
@@ -88,9 +88,7 @@ defmodule Breakfast.Digest do
                   :error
 
                 other ->
-                  raise "Bad return from validate from field: #{unquote(field_name)}. Expected :ok | :error, got: #{
-                          inspect(other)
-                        }"
+                  raise DecodeError.new_bad_validate_return_error(unquote(field_name), other)
               end
             end
           end
@@ -107,7 +105,7 @@ defmodule Breakfast.Digest do
               :ok
 
             :error ->
-              {:error, Error.new_validate_error(unquote(field_name), value)}
+              {:error, DecodeError.new_validate_error(unquote(field_name), value)}
           end
         end
       end
@@ -145,9 +143,7 @@ defmodule Breakfast.Digest do
                   :error
 
                 other ->
-                  raise "Bad return from cast from field: #{unquote(field_name)}. Expected {:ok, term()} | :error, got: #{
-                          inspect(other)
-                        }"
+                  raise DecodeError.new_bad_cast_return_error(unquote(field_name), other)
               end
             end
           end
@@ -164,7 +160,7 @@ defmodule Breakfast.Digest do
               {:ok, casted_value}
 
             :error ->
-              {:error, Error.new_cast_error(unquote(field_name), value)}
+              {:error, DecodeError.new_cast_error(unquote(field_name), value)}
           end
         end
       end
@@ -186,9 +182,7 @@ defmodule Breakfast.Digest do
                   :error
 
                 other ->
-                  raise "Bad return from parse from field: #{unquote(field_name)}. Expected {:ok, term()} | :error, got: #{
-                          inspect(other)
-                        }"
+                  raise DecodeError.new_bad_parse_return_error(unquote(field_name), other)
               end
             end
           end
@@ -211,7 +205,7 @@ defmodule Breakfast.Digest do
                     {:ok, default_value}
 
                   :error ->
-                    {:error, Macro.escape(Error.new_parse_error(field_name))}
+                    {:error, Macro.escape(DecodeError.new_parse_error(field_name))}
                 end
               )
           end

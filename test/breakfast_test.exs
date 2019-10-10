@@ -49,7 +49,7 @@ defmodule BreakfastTest do
   test "should result in a parse error if a field is missing", %{params: params} do
     assert User.decode(Map.delete(params, "age")) ==
              {:error,
-              %Breakfast.Error{
+              %Breakfast.DecodeError{
                 message: "Could not parse field from params",
                 type: :parse_error,
                 value: :age
@@ -61,7 +61,7 @@ defmodule BreakfastTest do
   } do
     assert User.decode(Map.put(params, "UserStatus", "Canclled")) ==
              {:error,
-              %Breakfast.Error{
+              %Breakfast.DecodeError{
                 message: "Could not parse field from params",
                 type: :parse_error,
                 value: :status
@@ -71,18 +71,20 @@ defmodule BreakfastTest do
   test "should raise a runtime exception if the custom parse returns a bad value", %{
     params: params
   } do
-    assert assert_raise(RuntimeError, fn ->
+    assert assert_raise(Breakfast.DecodeError, fn ->
              User.decode(Map.put(params, "UserStatus", "Approved"))
-           end) == %RuntimeError{
+           end) == %Breakfast.DecodeError{
              message:
-               "Bad return from parse from field: status. Expected {:ok, term()} | :error, got: \"Approved\""
+               "The parse function defined for the field returned an invald type. Expected {:ok, term()} | :error, but got: \"Approved\"",
+             type: :bad_parse_return,
+             value: [field: :status, bad_return: "Approved"]
            }
   end
 
   test "should complain about invalid value for field", %{params: params} do
     assert User.decode(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
              {:error,
-              %Breakfast.Error{
+              %Breakfast.DecodeError{
                 message: "Invalid value for field",
                 type: :validate_error,
                 value: {:email, :shayneAThotmailDOTcom}
@@ -92,7 +94,7 @@ defmodule BreakfastTest do
   test "should complain about a bad cast", %{params: params} do
     assert User.decode(Map.put(params, "age", :"10")) ==
              {:error,
-              %Breakfast.Error{
+              %Breakfast.DecodeError{
                 message: "Value failed to cast",
                 type: :cast_error,
                 value: {:age, :"10"}
