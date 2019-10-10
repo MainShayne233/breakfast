@@ -108,22 +108,35 @@ defmodule BreakfastTest do
                @type status :: :approved | :pending | :rejected
 
                defdata Request do
-                 field(:status, status())
+                 field(:status, Client.status())
                end
              end
            end) == %Breakfast.CompileError{
+             __exception__: true,
              message:
-               "Failed to define the defdata for Request. Underyling error: Cannot infer validator for field: status. It is unclear how to validate the type: status()",
+               "Failed to define the defdata for Request. Underyling error: Cannot infer validator for field: status. It is unclear how to validate the type: Client.status()",
              type: :module_define_error,
              value: [
                name: Request,
                error: %Breakfast.CompileError{
+                 __exception__: true,
                  message:
-                   "Cannot infer validator for field: status. It is unclear how to validate the type: status()",
+                   "Cannot infer validator for field: status. It is unclear how to validate the type: Client.status()",
                  type: :validator_inference,
-                 value: [field: :status, type: {:status, [line: 111], []}]
+                 value: [field: :status, type: "Client.status()"]
                }
              ]
            }
+
+    defmodule Client do
+      use Breakfast
+      @type status :: :approved | :pending | :rejected
+
+      defdata Request do
+        field(:status, Client.status(),
+          validate: &Enum.member?(&1, [:approved, :pending, :rejected])
+        )
+      end
+    end
   end
 end
