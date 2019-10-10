@@ -103,39 +103,39 @@ defmodule BreakfastTest do
 
   test "should give a helpful error if unable to infer the validator for a custom type" do
     assert assert_raise(Breakfast.CompileError, fn ->
-             defmodule Client do
+             defmodule Client2 do
                use Breakfast
                @type status :: :approved | :pending | :rejected
 
                defdata Request do
-                 field(:status, Client.status())
+                 field(:statuses, Client.status())
                end
              end
            end) == %Breakfast.CompileError{
-             __exception__: true,
              message:
-               "Failed to define the defdata for Request. Underyling error: Cannot infer validator for field: status. It is unclear how to validate the type: Client.status()",
+               "Failed to define the defdata for Request.\nUnderyling error: Cannot infer validator for field: statuses. It is unclear how to validate the field's type: Client.status().\n\nYou can define a validator inline with the field, like:\n\ndefdata ... do\nfield(statuses, Client.status(), validate: fn value -> ... end)\nend\n\nOr, you can define the validate seperatly:\n\ndefdata ... do\nfield(statuses, Client.status())\n\nvalidate(Client.status(), fn value -> ... end)\nend\n\n",
              type: :module_define_error,
              value: [
                name: Request,
                error: %Breakfast.CompileError{
-                 __exception__: true,
                  message:
-                   "Cannot infer validator for field: status. It is unclear how to validate the type: Client.status()",
+                   "Cannot infer validator for field: statuses. It is unclear how to validate the field's type: Client.status().\n\nYou can define a validator inline with the field, like:\n\ndefdata ... do\nfield(statuses, Client.status(), validate: fn value -> ... end)\nend\n\nOr, you can define the validate seperatly:\n\ndefdata ... do\nfield(statuses, Client.status())\n\nvalidate(Client.status(), fn value -> ... end)\nend\n",
                  type: :validator_inference,
-                 value: [field: :status, type: "Client.status()"]
+                 value: [field: :statuses, type: "Client.status()"]
                }
              ]
            }
 
-    defmodule Client do
+    defmodule Client2 do
       use Breakfast
       @type status :: :approved | :pending | :rejected
 
       defdata Request do
-        field(:status, Client.status(),
-          validate: &Enum.member?(&1, [:approved, :pending, :rejected])
-        )
+        field(:statuses, [Client.status()])
+
+        validate(Client.status(), fn value ->
+          if value in [:approved, :pending, :rejected], do: :ok, else: :error
+        end)
       end
     end
   end

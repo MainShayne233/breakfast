@@ -20,14 +20,55 @@ defmodule Breakfast.Type do
     map: %{predicate: &__MODULE__.is_map/1}
   }
 
-  @spec fetch_predicate(spec()) :: {:ok, predicate()} | :error
-  def fetch_predicate([list_item_spec]) do
-    with {:ok, predicate} <- fetch_predicate(list_item_spec) do
-      {:ok, quote(do: fn list -> Enum.all?(&1, unquote(predicate)) end)}
+  def infer_validator([spec], validators) do
+    with {:ok, item_validator} <- infer_validator(spec, validators) do
+      {:ok, list_validator(item_validator)}
     end
   end
 
-  def fetch_predicate(spec) do
+  def infer_validator(spec, validators) do
+    with :error <- fetch_defined_validator(spec, validators),
+         {:ok, predicate} <- fetch_predicate(spec) do
+      {:ok, validator_from_predicate(predicate)}
+    else
+      {:ok, defined_validator} ->
+        {:ok, defined_validator}
+
+      :error ->
+        {:error, spec}
+    end
+  end
+
+  defp list_validator(item_validator) do
+    quote(
+      do: fn list ->
+        Enum.reduce_while(list, :ok, fn item, :ok ->
+          case unquote(item_validator).(item) do
+            :ok -> {:cont, :ok}
+            :error -> {:halt, :error}
+          end
+        end)
+      end
+    )
+  end
+
+  defp fetch_defined_validator(spec, validators) do
+    Enum.find_value(validators, :error, fn [validator_spec, validator_func] ->
+      if Macro.to_string(spec) == Macro.to_string(validator_spec) do
+        {:ok, validator_func}
+      else
+        false
+      end
+    end)
+  end
+
+  defp validator_from_predicate(predicate) do
+    quote do
+      &if(unquote(predicate).(&1), do: :ok, else: :error)
+    end
+  end
+
+  defp fetch_predicate(spec) do
     with {:ok, type} <- type_from_spec(spec),
          %{^type => %{predicate: predicate}} <- @standard_types_lookup do
       {:ok, predicate}

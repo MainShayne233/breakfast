@@ -41,21 +41,35 @@ defmodule Breakfast.Digest do
   """
   @spec digest_data(name :: term(), block() | term()) :: Data.t()
   def digest_data(name, {:__block__, _, expressions}) do
-    Enum.reduce(expressions, %Data{name: name}, fn
-      {:field, _, params}, data ->
-        %Data{data | fields: [digest_field(params) | data.fields]}
+    sections = Enum.group_by(expressions, &elem(&1, 0), &elem(&1, 2))
 
-      {:defdata, _, [name, [do: block]]}, data ->
-        %Data{data | datas: [digest_data(name, block) | data.datas]}
-    end)
+    validators =
+      sections
+      |> Map.get(:validate, [])
+
+    fields =
+      sections
+      |> Map.get(:field, [])
+      |> Enum.map(&digest_field(&1, validators))
+
+    datas =
+      sections
+      |> Map.get(:defdata, [])
+      |> Enum.map(fn [name, [do: block]] -> digest_data(name, block) end)
+
+    %Data{
+      name: name,
+      fields: fields,
+      datas: datas
+    }
   end
 
   def digest_data(name, expr) do
     digest_data(name, {:__block__, [], [expr]})
   end
 
-  @spec digest_field(list()) :: Field.t()
-  defp digest_field([field_name, type | rest]) do
+  @spec digest_field(list(), list()) :: Field.t()
+  defp digest_field([field_name, type | rest], validators) do
     options = Enum.at(rest, 0, [])
 
     params =
@@ -63,7 +77,7 @@ defmodule Breakfast.Digest do
       |> digest_default(options)
       |> digest_parse(field_name, options)
       |> digest_cast(field_name, options)
-      |> digest_validate(field_name, type, options)
+      |> digest_validate(field_name, type, options, validators)
       |> Keyword.put(:options, options)
 
     struct!(Field, params)
@@ -74,7 +88,7 @@ defmodule Breakfast.Digest do
     Keyword.put(params, :default, default)
   end
 
-  defp digest_validate(params, field_name, type, options) do
+  defp digest_validate(params, field_name, type, options, validators) do
     validate =
       case Keyword.fetch(options, :validate) do
         {:ok, validate} ->
@@ -94,7 +108,7 @@ defmodule Breakfast.Digest do
           end
 
         :error ->
-          type_derived_validator(field_name, type)
+          infer_validator(field_name, type, validators)
       end
 
     validate_field =
@@ -113,19 +127,13 @@ defmodule Breakfast.Digest do
     Keyword.put(params, :validate, validate_field)
   end
 
-  defp type_derived_validator(field_name, type) do
-    case Type.fetch_predicate(type) do
-      {:ok, predicate} ->
-        validator_from_predicate(predicate)
+  defp infer_validator(field_name, type, validators) do
+    case Type.infer_validator(type, validators) do
+      {:ok, validator} ->
+        validator
 
-      :error ->
-        raise CompileError.new_validator_inference_error(field_name, type)
-    end
-  end
-
-  defp validator_from_predicate(predicate) do
-    quote do
-      &if(unquote(predicate).(&1), do: :ok, else: :error)
+      {:error, bad_type} ->
+        raise CompileError.new_validator_inference_error(field_name, type, bad_type)
     end
   end
 
