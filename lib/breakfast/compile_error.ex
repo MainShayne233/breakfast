@@ -12,7 +12,7 @@ defmodule Breakfast.CompileError do
       message: """
 
 
-      Failed to define the defdata for #{Macro.to_string(module_name)}.
+      Failed to define the defdecoder for #{Macro.to_string(module_name)}.
 
       Underyling error:
 
@@ -35,13 +35,13 @@ defmodule Breakfast.CompileError do
 
     You can define a validat function inline with the field, like:
 
-    defdata ... do
+    defdecoder ... do
       field(#{field_name}, #{Macro.to_string(field_type)}, validate: fn value -> ... end)
     end
 
     Or, you can define the validate function seperatly:
 
-    defdata ... do
+    defdecoder ... do
       field(#{field_name}, #{Macro.to_string(field_type)})
 
       validate(#{Macro.to_string(field_type)}, fn value -> ... end)
@@ -58,7 +58,7 @@ defmodule Breakfast.CompileError do
 
     You can add a validate function to define the way to validate this type like so:
 
-    defdata ... do
+    defdecoder ... do
       field(#{field_name}, #{Macro.to_string(field_type)})
 
       validate(#{Macro.to_string(bad_type)}, fn value ->

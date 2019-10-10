@@ -1,6 +1,6 @@
 # Roadmap
 
-## `defdata/2` (name up for debate)
+## `defdecoder/2` (name up for debate)
 
 This is the macro used to define a decoder.
 

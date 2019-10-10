@@ -6,11 +6,11 @@ defmodule Breakfast do
 
   defmacro __using__(_) do
     quote do
-      import Breakfast, only: [defdata: 2]
+      import Breakfast, only: [defdecoder: 2]
     end
   end
 
-  defmacro defdata(name, do: block) do
+  defmacro defdecoder(name, do: block) do
     name
     |> Breakfast.Digest.digest_data(block)
     |> define_module()

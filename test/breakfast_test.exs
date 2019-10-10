@@ -1,7 +1,7 @@
 defmodule Client do
   use Breakfast
 
-  defdata User do
+  defdecoder User do
     field(:email, String.t())
     field(:age, integer(), cast: &Client.int_from_string/1)
     field(:timezone, String.t(), default: "US")
@@ -107,7 +107,7 @@ defmodule BreakfastTest do
                use Breakfast
                @type status :: :approved | :pending | :rejected
 
-               defdata Request do
+               defdecoder Request do
                  field(:statuses, Client.status())
                end
              end
@@ -117,7 +117,7 @@ defmodule BreakfastTest do
       use Breakfast
       @type status :: :approved | :pending | :rejected
 
-      defdata Request do
+      defdecoder Request do
         field(:statuses, [Client.status()])
 
         validate(Client.status(), fn value ->

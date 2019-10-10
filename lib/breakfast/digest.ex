@@ -54,7 +54,7 @@ defmodule Breakfast.Digest do
 
     datas =
       sections
-      |> Map.get(:defdata, [])
+      |> Map.get(:defdecoder, [])
       |> Enum.map(fn [name, [do: block]] -> digest_data(name, block) end)
 
     %Data{
