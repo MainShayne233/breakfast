@@ -111,20 +111,7 @@ defmodule BreakfastTest do
                  field(:statuses, Client.status())
                end
              end
-           end) == %Breakfast.CompileError{
-             message:
-               "Failed to define the defdata for Request.\nUnderyling error: Cannot infer validator for field: statuses. It is unclear how to validate the field's type: Client.status().\n\nYou can define a validator inline with the field, like:\n\ndefdata ... do\nfield(statuses, Client.status(), validate: fn value -> ... end)\nend\n\nOr, you can define the validate seperatly:\n\ndefdata ... do\nfield(statuses, Client.status())\n\nvalidate(Client.status(), fn value -> ... end)\nend\n\n",
-             type: :module_define_error,
-             value: [
-               name: Request,
-               error: %Breakfast.CompileError{
-                 message:
-                   "Cannot infer validator for field: statuses. It is unclear how to validate the field's type: Client.status().\n\nYou can define a validator inline with the field, like:\n\ndefdata ... do\nfield(statuses, Client.status(), validate: fn value -> ... end)\nend\n\nOr, you can define the validate seperatly:\n\ndefdata ... do\nfield(statuses, Client.status())\n\nvalidate(Client.status(), fn value -> ... end)\nend\n",
-                 type: :validator_inference,
-                 value: [field: :statuses, type: "Client.status()"]
-               }
-             ]
-           }
+           end)
 
     defmodule Client2 do
       use Breakfast

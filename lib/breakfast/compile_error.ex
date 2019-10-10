@@ -10,8 +10,13 @@ defmodule Breakfast.CompileError do
       type: :module_define_error,
       value: [name: String.to_atom("Elixir." <> Macro.to_string(module_name)), error: error],
       message: """
+
+
       Failed to define the defdata for #{Macro.to_string(module_name)}.
-      Underyling error: #{error.message}
+
+      Underyling error:
+
+      #{error.message}
       """
     }
 
@@ -28,18 +33,18 @@ defmodule Breakfast.CompileError do
       Macro.to_string(field_type)
     }.
 
-    You can define a validator inline with the field, like:
+    You can define a validat function inline with the field, like:
 
     defdata ... do
-    field(#{field_name}, #{Macro.to_string(field_type)}, validate: fn value -> ... end)
+      field(#{field_name}, #{Macro.to_string(field_type)}, validate: fn value -> ... end)
     end
 
-    Or, you can define the validate seperatly:
+    Or, you can define the validate function seperatly:
 
     defdata ... do
-    field(#{field_name}, #{Macro.to_string(field_type)})
+      field(#{field_name}, #{Macro.to_string(field_type)})
 
-    validate(#{Macro.to_string(field_type)}, fn value -> ... end)
+      validate(#{Macro.to_string(field_type)}, fn value -> ... end)
     end
     """
 
@@ -51,11 +56,10 @@ defmodule Breakfast.CompileError do
       Macro.to_string(bad_type)
     }.
 
-    You can add a validate definition to define the way to validate this type like so:
+    You can add a validate function to define the way to validate this type like so:
 
     defdata ... do
       field(#{field_name}, #{Macro.to_string(field_type)})
-      ...
 
       validate(#{Macro.to_string(bad_type)}, fn value ->
         if ... do
