@@ -100,4 +100,30 @@ defmodule BreakfastTest do
                 value: {:age, :"10"}
               }}
   end
+
+  test "should give a helpful error if unable to infer the validator for a custom type" do
+    assert assert_raise(Breakfast.CompileError, fn ->
+             defmodule Client do
+               use Breakfast
+               @type status :: :approved | :pending | :rejected
+
+               defdata Request do
+                 field(:status, status())
+               end
+             end
+           end) == %Breakfast.CompileError{
+             message:
+               "Failed to define the defdata for Request. Underyling error: Cannot infer validator for field: status. It is unclear how to validate the type: status()",
+             type: :module_define_error,
+             value: [
+               name: Request,
+               error: %Breakfast.CompileError{
+                 message:
+                   "Cannot infer validator for field: status. It is unclear how to validate the type: status()",
+                 type: :validator_inference,
+                 value: [field: :status, type: {:status, [line: 111], []}]
+               }
+             ]
+           }
+  end
 end

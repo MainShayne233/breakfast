@@ -32,7 +32,7 @@ defmodule Breakfast.Digest do
     defstruct @enforce_keys ++ @keys_with_defaults
   end
 
-  alias Breakfast.{DecodeError, Type}
+  alias Breakfast.{CompileError, DecodeError, Type}
 
   @type block :: {:__block__, term(), list()}
 
@@ -94,7 +94,7 @@ defmodule Breakfast.Digest do
           end
 
         :error ->
-          type_derived_validator(type)
+          type_derived_validator(field_name, type)
       end
 
     validate_field =
@@ -113,13 +113,13 @@ defmodule Breakfast.Digest do
     Keyword.put(params, :validate, validate_field)
   end
 
-  defp type_derived_validator(type) do
+  defp type_derived_validator(field_name, type) do
     case Type.fetch_predicate(type) do
       {:ok, predicate} ->
         validator_from_predicate(predicate)
 
       :error ->
-        raise "Cannot infer a validator for custom type: #{inspect(type)}"
+        raise CompileError.new_validator_inference_error(field_name, type)
     end
   end
 

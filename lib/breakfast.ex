@@ -1,4 +1,5 @@
 defmodule Breakfast do
+  alias Breakfast.CompileError
   alias Breakfast.Digest.{Data, Field}
 
   @type quoted :: term()
@@ -13,6 +14,9 @@ defmodule Breakfast do
     name
     |> Breakfast.Digest.digest_data(block)
     |> define_module()
+  rescue
+    error in CompileError ->
+      raise CompileError.new_module_define_error(name, error)
   end
 
   @spec define_module(Data.t()) :: quoted()
