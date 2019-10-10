@@ -41,13 +41,17 @@ defmodule Breakfast.Type do
 
   defp list_validator(item_validator) do
     quote(
-      do: fn list ->
-        Enum.reduce_while(list, :ok, fn item, :ok ->
-          case unquote(item_validator).(item) do
-            :ok -> {:cont, :ok}
-            :error -> {:halt, :error}
-          end
-        end)
+      do: fn
+        list when is_list(list) ->
+          Enum.reduce_while(list, :ok, fn item, :ok ->
+            case unquote(item_validator).(item) do
+              :ok -> {:cont, :ok}
+              :error -> {:halt, :error}
+            end
+          end)
+
+        _other ->
+          :error
       end
     )
   end

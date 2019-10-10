@@ -1,6 +1,8 @@
 # Roadmap
 
-## `defdecoder/2` (name up for debate)
+---
+
+## `defdecoder/2`
 
 This is the macro used to define a decoder.
 
@@ -18,6 +20,34 @@ This is the macro used to define a decoder.
 
 #### Compile Errors:
 - If a field uses a type and we cannot determine what validate function to use for it, raise an error explaining this and how to solve it ✅
+
+---
+
+## `defdecoder -> field/3`
+
+This is a "virtual" function used inside a `defdecoder` that allows for defining a field on a decoder.
+
+### Acceptance Criteria:
+
+#### General
+- Takes a name and type as the first two arguments ✅
+- Allows for a `:default` option that will be used if the parse function returns `:error` ✅
+- Allows for a `:parse` option that's value will be used as the field's parse function ✅
+- Allows for a `:cast` option that's value will be used as the field's cast function ❓
+- Allows for a `:validate` option that's value will be used as the field's validate function ❓
+---
+
+## `defdecoder -> defdecoder/2`
+
+This is a "virtual" function that allows for nested decoders to be defined within a decoder.
+
+### Acceptance Criteria:
+
+#### General
+- Should be compiled and namespaced within the parent decoder ✅
+- Should compile and behave exactly like a normal decoder ✅
+
+---
 
 ## `decode/1`
 
