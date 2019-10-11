@@ -6,13 +6,21 @@ defmodule Breakfast do
 
   defmacro __using__(_) do
     quote do
-      import Breakfast, only: [defdecoder: 2]
+      import Breakfast, only: [defdecoder: 2, defdecoder: 3]
     end
   end
 
+  defmacro defdecoder(name, options, do: block) do
+    do_defdecoder(name, options, block)
+  end
+
   defmacro defdecoder(name, do: block) do
+    do_defdecoder(name, [], block)
+  end
+
+  defp do_defdecoder(name, options, block) do
     name
-    |> Breakfast.Digest.digest_data(block)
+    |> Breakfast.Digest.digest_data(block, options)
     |> define_module()
   rescue
     error in CompileError ->

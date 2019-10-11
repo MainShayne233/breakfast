@@ -3,6 +3,7 @@ defmodule Breakfast.Digest do
     alias Breakfast.Type
 
     @type map_resulter :: (term() -> {:ok, term()} | :error)
+    @type map_resulter_2 :: (term(), term() -> {:ok, term()} | :error)
     @type resulter :: (term() -> :ok | :error)
 
     @type t :: %__MODULE__{
@@ -39,8 +40,8 @@ defmodule Breakfast.Digest do
   @doc """
   Handles parsing the definition and defining a single Data.t() to describe it.
   """
-  @spec digest_data(name :: term(), block() | term()) :: Data.t()
-  def digest_data(name, {:__block__, _, expressions}) do
+  @spec digest_data(name :: term(), block() | term(), Keyword.t()) :: Data.t()
+  def digest_data(name, {:__block__, _, expressions}, options) do
     sections = Enum.group_by(expressions, &elem(&1, 0), &elem(&1, 2))
 
     validators =
@@ -50,12 +51,15 @@ defmodule Breakfast.Digest do
     fields =
       sections
       |> Map.get(:field, [])
-      |> Enum.map(&digest_field(&1, validators))
+      |> Enum.map(&digest_field(&1, validators, options))
 
     datas =
       sections
       |> Map.get(:defdecoder, [])
-      |> Enum.map(fn [name, [do: block]] -> digest_data(name, block) end)
+      |> Enum.map(fn
+        [name, [do: block]] -> digest_data(name, block, [])
+        [name, options, [do: block]] -> digest_data(name, block, options)
+      end)
 
     %Data{
       name: name,
@@ -64,18 +68,18 @@ defmodule Breakfast.Digest do
     }
   end
 
-  def digest_data(name, expr) do
-    digest_data(name, {:__block__, [], [expr]})
+  def digest_data(name, expr, options) do
+    digest_data(name, {:__block__, [], [expr]}, options)
   end
 
-  @spec digest_field(list(), list()) :: Field.t()
-  defp digest_field([field_name, type | rest], validators) do
+  @spec digest_field(list(), list(), Keyword.t()) :: Field.t()
+  defp digest_field([field_name, type | rest], validators, data_options) do
     options = Enum.at(rest, 0, [])
 
     params =
       [name: field_name, type: type]
       |> digest_default(options)
-      |> digest_parse(field_name, options)
+      |> digest_parse(field_name, options, data_options)
       |> digest_cast(field_name, options)
       |> digest_validate(field_name, type, options, validators)
       |> Keyword.put(:options, options)
@@ -176,7 +180,7 @@ defmodule Breakfast.Digest do
     Keyword.put(params, :cast, cast_field)
   end
 
-  defp digest_parse(params, field_name, options) do
+  defp digest_parse(params, field_name, options, data_options) do
     parse =
       case Keyword.fetch(options, :parse) do
         {:ok, parse} ->
@@ -196,7 +200,13 @@ defmodule Breakfast.Digest do
           end
 
         :error ->
-          quote(do: &Map.fetch(&1, unquote(to_string(field_name))))
+          case Keyword.fetch(data_options, :default_parse) do
+            {:ok, parse} ->
+              quote(do: fn params -> unquote(parse).(params, unquote(field_name)) end)
+
+            :error ->
+              quote(do: &Map.fetch(&1, unquote(to_string(field_name))))
+          end
       end
 
     parse_field =

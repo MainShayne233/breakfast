@@ -85,6 +85,8 @@ defmodule Breakfast.Type do
   @spec type_from_spec(spec()) :: {:ok, type()}
   defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: {:ok, :string}
   defp type_from_spec({:integer, _, []}), do: {:ok, :integer}
+  defp type_from_spec({:float, _, []}), do: {:ok, :float}
+  defp type_from_spec({:number, _, []}), do: {:ok, :number}
   defp type_from_spec({:map, _, []}), do: {:ok, :map}
 
   defp type_from_spec(_other), do: :error
