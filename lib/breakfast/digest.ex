@@ -189,7 +189,7 @@ defmodule Breakfast.Digest do
         :error ->
           case Keyword.fetch!(params, :defined_decoder) do
             {:ok, decoder} ->
-              quote(do: &with({:error, _} <- unquote(decoder).decode(&1), do: :error))
+              quote(do: &unquote(decoder).decode(&1))
 
             :error ->
               quote(do: &Tuple.append({:ok}, &1))
@@ -203,8 +203,12 @@ defmodule Breakfast.Digest do
             {:ok, casted_value} ->
               {:ok, casted_value}
 
+            {:error, %DecodeError{} = error} ->
+              {:error, error}
+
             :error ->
               {:error, DecodeError.new_cast_error(unquote(field_name), value)}
+
           end
         end
       end

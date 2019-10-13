@@ -239,4 +239,32 @@ defmodule BreakfastTest do
                 }}
     end
   end
+
+  testmodule SuperNestedDecoder do
+    use Breakfast
+
+    defdecoder Data do
+      field(:a, A.t())
+
+      defdecoder A do
+        field(:b, B.t())
+
+        defdecoder B do
+          field(:c, C.t())
+
+          defdecoder C do
+            field(:value, number())
+          end
+        end
+      end
+    end
+
+    @tag :only
+    test "If a deeply nested decoder fails, the error should be reporting from that level" do
+      assert match?({:ok, _}, SuperNestedDecoder.Data.decode(%{"a" => %{"b" => %{"c" => %{"value" => 1}}}}))
+
+      SuperNestedDecoder.Data.decode(%{"a" => %{"b" => %{"c" => %{"value" => ""}}}})
+      |> IO.inspect
+    end
+  end
 end
