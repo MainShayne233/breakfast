@@ -17,7 +17,8 @@ This is the macro used to define a decoder.
 - The struct gets a `@typedoc` generated for it ❌
 - Defaults to using `&Map.fetch(&1, to_string(field_name))` as the default parser ✅
 - Allows for a `:default_parse` function to be defined ✅
-]'
+- A field specific parse function should take precedence over a `:default_parse` function ✅
+
 #### Compile Errors:
 - If a field uses a type and we cannot determine what validate function to use for it, raise an error explaining this and how to solve it ✅
 

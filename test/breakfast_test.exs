@@ -155,4 +155,30 @@ defmodule BreakfastTest do
                 }}
     end
   end
+
+  testmodule DefaultParseOverride do
+    use Breakfast
+
+    defdecoder JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
+      field(:first_name, String.t())
+      field(:last_name, String.t())
+      field(:age, integer(), parse: &Map.fetch(&1, "UserAge"))
+    end
+
+    def camel_key_fetch(params, key) do
+      {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
+      camel_key = String.downcase(first_char) <> rest
+      Map.fetch(params, camel_key)
+    end
+
+    test "should use the :default_parse function if one is defined" do
+      assert JSUser.decode(%{"firstName" => "shawn", "lastName" => "trembles", "UserAge" => 28}) ==
+               {:ok,
+                %JSUser{
+                  first_name: "shawn",
+                  last_name: "trembles",
+                  age: 28
+                }}
+    end
+  end
 end
