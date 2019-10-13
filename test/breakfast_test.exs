@@ -125,7 +125,7 @@ defmodule BreakfastTest do
                   field(:statuses, [Client.status()])
 
                   validate(Client.status(), fn value ->
-                    if value in [:approved, :pending, :rejected], do: :ok, else: :error
+                    value in [:approved, :pending, :rejected]
                   end)
                 end
               end)
@@ -178,6 +178,35 @@ defmodule BreakfastTest do
                   first_name: "shawn",
                   last_name: "trembles",
                   age: 28
+                }}
+    end
+  end
+
+  testmodule NestedDecoder do
+    use Breakfast
+
+    defdecoder User do
+      field(:email, String.t())
+      field(:config, Config.t())
+
+      defdecoder Config do
+        field(:sleep_timeout, integer())
+        field(:timezone, String.t())
+      end
+    end
+
+    test "should properly handle a nested decoder" do
+      assert User.decode(%{
+               "email" => "some@email.com",
+               "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
+             }) ==
+               {:ok,
+                %User{
+                  email: "some@email.com",
+                  config: %User.Config{
+                    sleep_timeout: 50_000,
+                    timezone: "UTC"
+                  }
                 }}
     end
   end

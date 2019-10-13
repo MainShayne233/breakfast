@@ -1,5 +1,6 @@
 defmodule Breakfast.Digest do
   defmodule Field do
+    alias Breakfast.Digest.Data
     alias Breakfast.Type
 
     @type map_resulter :: (term() -> {:ok, term()} | :error)
@@ -13,10 +14,11 @@ defmodule Breakfast.Digest do
             parse: map_resulter(),
             cast: map_resulter(),
             validate: resulter(),
-            options: Keyword.t()
+            options: Keyword.t(),
+            defined_decoder: {:ok, Data.t()} | :error
           }
 
-    @enforce_keys [:name, :type, :default, :parse, :cast, :validate, :options]
+    @enforce_keys [:name, :type, :default, :parse, :cast, :validate, :options, :defined_decoder]
     defstruct @enforce_keys
   end
 
@@ -44,15 +46,6 @@ defmodule Breakfast.Digest do
   def digest_data(name, {:__block__, _, expressions}, options) do
     sections = Enum.group_by(expressions, &elem(&1, 0), &elem(&1, 2))
 
-    validators =
-      sections
-      |> Map.get(:validate, [])
-
-    fields =
-      sections
-      |> Map.get(:field, [])
-      |> Enum.map(&digest_field(&1, validators, options))
-
     datas =
       sections
       |> Map.get(:defdecoder, [])
@@ -60,6 +53,15 @@ defmodule Breakfast.Digest do
         [name, [do: block]] -> digest_data(name, block, [])
         [name, options, [do: block]] -> digest_data(name, block, options)
       end)
+
+    validators =
+      sections
+      |> Map.get(:validate, [])
+
+    fields =
+      sections
+      |> Map.get(:field, [])
+      |> Enum.map(&digest_field(&1, datas, validators, options))
 
     %Data{
       name: name,
@@ -72,12 +74,13 @@ defmodule Breakfast.Digest do
     digest_data(name, {:__block__, [], [expr]}, options)
   end
 
-  @spec digest_field(list(), list(), Keyword.t()) :: Field.t()
-  defp digest_field([field_name, type | rest], validators, data_options) do
+  @spec digest_field(list(), [Data.t()], list(), Keyword.t()) :: Field.t()
+  defp digest_field([field_name, type | rest], datas, validators, data_options) do
     options = Enum.at(rest, 0, [])
 
     params =
       [name: field_name, type: type]
+      |> digest_defined_decoder(datas)
       |> digest_default(options)
       |> digest_parse(field_name, options, data_options)
       |> digest_cast(field_name, options)
@@ -85,6 +88,22 @@ defmodule Breakfast.Digest do
       |> Keyword.put(:options, options)
 
     struct!(Field, params)
+  end
+
+  defp digest_defined_decoder(params, datas) do
+    defined_decoder =
+      Enum.find_value(datas, :error, fn %Data{name: name} ->
+        type_spec = Keyword.fetch!(params, :type)
+        expected_type_spec = quote(do: unquote(name).t())
+
+        if Macro.to_string(expected_type_spec) == Macro.to_string(type_spec) do
+          {:ok, name}
+        else
+          false
+        end
+      end)
+
+    Keyword.put(params, :defined_decoder, defined_decoder)
   end
 
   defp digest_default(params, options) do
@@ -98,31 +117,33 @@ defmodule Breakfast.Digest do
         {:ok, validate} ->
           quote do
             fn value ->
-              case unquote(validate).(value) do
-                :ok ->
-                  :ok
-
-                :error ->
-                  :error
-
-                other ->
-                  raise DecodeError.new_bad_validate_return_error(unquote(field_name), other)
+              with invalid_return when not is_boolean(invalid_return) <- unquote(validate).(value) do
+                raise DecodeError.new_bad_validate_return_error(
+                        unquote(field_name),
+                        invalid_return
+                      )
               end
             end
           end
 
         :error ->
-          infer_validator(field_name, type, validators)
+          case Keyword.fetch!(params, :defined_decoder) do
+            {:ok, _} ->
+              quote(do: fn _ -> true end)
+
+            :error ->
+              infer_validator(field_name, type, validators)
+          end
       end
 
     validate_field =
       quote do
         fn value ->
           case unquote(validate).(value) do
-            :ok ->
+            true ->
               :ok
 
-            :error ->
+            false ->
               {:error, DecodeError.new_validate_error(unquote(field_name), value)}
           end
         end
@@ -161,7 +182,13 @@ defmodule Breakfast.Digest do
           end
 
         :error ->
-          quote(do: &Tuple.append({:ok}, &1))
+          case Keyword.fetch!(params, :defined_decoder) do
+            {:ok, decoder} ->
+              quote(do: &unquote(decoder).decode/1)
+
+            :error ->
+              quote(do: &Tuple.append({:ok}, &1))
+          end
       end
 
     cast_field =

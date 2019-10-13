@@ -28,32 +28,13 @@ defmodule Breakfast.Type do
 
   def infer_validator(spec, validators) do
     with :error <- fetch_defined_validator(spec, validators),
-         {:ok, predicate} <- fetch_predicate(spec) do
-      {:ok, validator_from_predicate(predicate)}
-    else
-      {:ok, defined_validator} ->
-        {:ok, defined_validator}
-
-      :error ->
-        {:error, spec}
+         :error <- fetch_predicate(spec) do
+      {:error, spec}
     end
   end
 
   defp list_validator(item_validator) do
-    quote(
-      do: fn
-        list when is_list(list) ->
-          Enum.reduce_while(list, :ok, fn item, :ok ->
-            case unquote(item_validator).(item) do
-              :ok -> {:cont, :ok}
-              :error -> {:halt, :error}
-            end
-          end)
-
-        _other ->
-          :error
-      end
-    )
+    quote(do: fn value -> is_list(value) and Enum.all?(value, unquote(item_validator)) end)
   end
 
   defp fetch_defined_validator(spec, validators) do
@@ -61,15 +42,9 @@ defmodule Breakfast.Type do
       if Macro.to_string(spec) == Macro.to_string(validator_spec) do
         {:ok, validator_func}
       else
-        false
+        :error
       end
     end)
-  end
-
-  defp validator_from_predicate(predicate) do
-    quote do
-      &if(unquote(predicate).(&1), do: :ok, else: :error)
-    end
   end
 
   defp fetch_predicate(spec) do
