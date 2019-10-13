@@ -210,4 +210,33 @@ defmodule BreakfastTest do
                 }}
     end
   end
+
+  testmodule ExternalDecoder do
+    use Breakfast
+
+    defdecoder User do
+      field(:email, String.t())
+      field(:config, {:external, BreakfastTest.ExternalDecoder.Config.t()})
+    end
+
+    defdecoder Config do
+      field(:sleep_timeout, integer())
+      field(:timezone, String.t())
+    end
+
+    test "should properly handle an externally defined decoder" do
+      assert User.decode(%{
+               "email" => "some@email.com",
+               "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
+             }) ==
+               {:ok,
+                %User{
+                  email: "some@email.com",
+                  config: %Config{
+                    sleep_timeout: 50_000,
+                    timezone: "UTC"
+                  }
+                }}
+    end
+  end
 end

@@ -92,16 +92,21 @@ defmodule Breakfast.Digest do
 
   defp digest_defined_decoder(params, datas) do
     defined_decoder =
-      Enum.find_value(datas, :error, fn %Data{name: name} ->
-        type_spec = Keyword.fetch!(params, :type)
-        expected_type_spec = quote(do: unquote(name).t())
-
-        if Macro.to_string(expected_type_spec) == Macro.to_string(type_spec) do
+      case Keyword.fetch!(params, :type) do
+        {:external, {{:., _, [name, _]}, _, _}} ->
           {:ok, name}
-        else
-          false
-        end
-      end)
+
+        type ->
+          Enum.find_value(datas, :error, fn %Data{name: name} ->
+            expected_type_spec = quote(do: unquote(name).t())
+
+            if Macro.to_string(expected_type_spec) == Macro.to_string(type) do
+              {:ok, name}
+            else
+              false
+            end
+          end)
+      end
 
     Keyword.put(params, :defined_decoder, defined_decoder)
   end
@@ -184,7 +189,7 @@ defmodule Breakfast.Digest do
         :error ->
           case Keyword.fetch!(params, :defined_decoder) do
             {:ok, decoder} ->
-              quote(do: &unquote(decoder).decode/1)
+              quote(do: &with({:error, _} <- unquote(decoder).decode(&1), do: :error))
 
             :error ->
               quote(do: &Tuple.append({:ok}, &1))
