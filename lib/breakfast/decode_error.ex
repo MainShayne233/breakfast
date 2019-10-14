@@ -10,8 +10,7 @@ defmodule Breakfast.DecodeError do
   def from_context(
         %ErrorContext{
           error_type: :parse_error,
-          field_path: field_path,
-          problem_value: :__na__
+          field_path: field_path
         },
         input
       ) do

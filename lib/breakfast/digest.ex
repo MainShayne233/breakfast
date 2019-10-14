@@ -139,21 +139,7 @@ defmodule Breakfast.Digest do
           end
       end
 
-    validate_field =
-      quote do
-        fn value ->
-          case unquote(validate).(value) do
-            true ->
-              :ok
-
-            false ->
-              {:error, %ErrorContext{error_type: :validate_error, problem_value: value}}
-
-            {:error, %ErrorContext{} = context} ->
-              {:error, context}
-          end
-        end
-      end
+    validate_field = result_wrap(validate, {true, :ok}, {false, :validate_error})
 
     Keyword.put(params, :validate, validate_field)
   end
@@ -202,20 +188,7 @@ defmodule Breakfast.Digest do
       end
 
     cast_field =
-      quote do
-        fn value ->
-          case unquote(cast).(value) do
-            {:ok, value} ->
-              {:ok, value}
-
-            :error ->
-              {:error, %ErrorContext{error_type: :cast_error, problem_value: value}}
-
-            {:error, %ErrorContext{} = context} ->
-              {:error, context}
-          end
-        end
-      end
+      result_wrap(cast, {quote(do: {:ok, value}), quote(do: {:ok, value})}, {:error, :cast_error})
 
     Keyword.put(params, :cast, cast_field)
   end
@@ -254,32 +227,39 @@ defmodule Breakfast.Digest do
       end
 
     parse_field =
-      quote do
-        fn params ->
-          case unquote(parse).(params) do
-            {:ok, value} ->
-              {:ok, value}
-
-            {:error, %ErrorContext{} = context} ->
-              {:error, context}
-
-            :error ->
-              unquote(
-                case Keyword.fetch!(params, :default) do
-                  {:ok, default_value} ->
-                    {:ok, default_value}
-
-                  :error ->
-                    {:error, Macro.escape(%ErrorContext{error_type: :parse_error})}
-
-                  {:error, %ErrorContext{} = context} ->
-                    {:error, context}
-                end
-              )
+      case Keyword.fetch!(params, :default) do
+        {:ok, value} ->
+          quote do
+            fn params ->
+              with :error <- unquote(parse).(params), do: {:ok, unquote(value)}
+            end
           end
-        end
+
+        :error ->
+          result_wrap(
+            parse,
+            {quote(do: {:ok, value}), quote(do: {:ok, value})},
+            {:error, :parse_error}
+          )
       end
 
     Keyword.put(params, :parse, parse_field)
+  end
+
+  defp result_wrap(function, {success_match, success_return}, {error_match, error_type}) do
+    quote do
+      fn value ->
+        case unquote(function).(value) do
+          unquote(success_match) ->
+            unquote(success_return)
+
+          unquote(error_match) ->
+            {:error, %ErrorContext{error_type: unquote(error_type), problem_value: value}}
+
+          {:error, %ErrorContext{} = context} ->
+            {:error, context}
+        end
+      end
+    end
   end
 end
