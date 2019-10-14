@@ -295,7 +295,7 @@ defmodule BreakfastTest do
   testmodule SuperNestedDecoder do
     use Breakfast
 
-    defdecoder Data do
+    defdecoder Decoder do
       field(:a, A.t())
 
       defdecoder A do
@@ -316,12 +316,12 @@ defmodule BreakfastTest do
 
       assert match?(
                {:ok, _},
-               SuperNestedDecoder.Data.decode(params)
+               SuperNestedDecoder.Decoder.decode(params)
              )
 
       params = put_in(params["a"]["b"]["c"]["value"], "")
 
-      assert SuperNestedDecoder.Data.decode(params) ==
+      assert SuperNestedDecoder.Decoder.decode(params) ==
                {:error,
                 %Breakfast.DecodeError{
                   field_path: [:a, :b, :c, :value],

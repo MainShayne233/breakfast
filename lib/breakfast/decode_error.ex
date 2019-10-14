@@ -5,8 +5,20 @@ defmodule Breakfast.DecodeError do
 
   alias Breakfast.ErrorContext
 
-  defexception [:type, :message, {:field_path, []}, :input, {:problem_value, :__na__}]
+  @type t :: %__MODULE__{
+          type: atom(),
+          message: String.t(),
+          field_path: [atom()],
+          input: term(),
+          problem_value: term()
+        }
 
+  @enforce_keys [:type, :message, :input]
+  @defaults [field_path: [], problem_value: :__na__]
+
+  defexception @enforce_keys ++ @defaults
+
+  @spec from_context(ErrorContext.t(), input :: term()) :: t()
   def from_context(
         %ErrorContext{
           error_type: :parse_error,
@@ -105,6 +117,7 @@ defmodule Breakfast.DecodeError do
     }
   end
 
+  @spec field_path_display([field_name :: atom()]) :: String.t()
   defp field_path_display(paths) do
     "input[" <> Enum.join(paths, " -> ") <> "]"
   end

@@ -3,8 +3,15 @@ defmodule Breakfast.CompileError do
   Defines errors that can occur at compile time.
   """
 
+  @type t :: %__MODULE__{
+    type: atom(),
+    value: term(),
+    message: String.t()
+  }
+
   defexception [:type, :value, :message]
 
+  @spec new_module_define_error(module_name :: Breakfast.quoted(), error :: t()) :: t()
   def new_module_define_error(module_name, error),
     do: %__MODULE__{
       type: :module_define_error,
@@ -20,6 +27,11 @@ defmodule Breakfast.CompileError do
       """
     }
 
+  @spec new_validator_inference_error(
+          field_name :: atom(),
+          field_type :: Breakfast.quoted(),
+          bad_type :: Breakfast.quoted()
+        ) :: t()
   def new_validator_inference_error(field_name, field_type, bad_type),
     do: %__MODULE__{
       type: :validator_inference,
@@ -27,6 +39,7 @@ defmodule Breakfast.CompileError do
       message: validator_inference_message(field_name, field_type, bad_type)
     }
 
+  @spec validator_inference_message(field_name :: atom(), field_type :: Breakfast.quoted(), bad_type :: Breakfast.quoted()) :: String.t()
   defp validator_inference_message(field_name, field_type, field_type),
     do: """
     Cannot infer validator for field: #{field_name}. It is unclear how to validate the field's type: #{

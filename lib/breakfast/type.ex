@@ -20,6 +20,8 @@ defmodule Breakfast.Type do
     map: %{predicate: &__MODULE__.is_map/1}
   }
 
+  @spec infer_validator(term(), list()) ::
+          {:ok, Breakfast.quoted()} | {:error, Breakfast.quoted()}
   def infer_validator([spec], validators) do
     with {:ok, item_validator} <- infer_validator(spec, validators) do
       {:ok, list_validator(item_validator)}
@@ -33,10 +35,13 @@ defmodule Breakfast.Type do
     end
   end
 
+  @spec list_validator(predicate()) :: Breakfast.quoted()
   defp list_validator(item_validator) do
     quote(do: fn value -> is_list(value) and Enum.all?(value, unquote(item_validator)) end)
   end
 
+  @spec fetch_defined_validator(spec(), validators :: list()) ::
+          {:ok, Breakfast.quoted()} | :error
   defp fetch_defined_validator(spec, validators) do
     Enum.find_value(validators, :error, fn [validator_spec, validator_func] ->
       if Macro.to_string(spec) == Macro.to_string(validator_spec) do
@@ -47,6 +52,7 @@ defmodule Breakfast.Type do
     end)
   end
 
+  @spec fetch_predicate(spec()) :: {:ok, predicate()} | :error
   defp fetch_predicate(spec) do
     with {:ok, type} <- type_from_spec(spec),
          %{^type => %{predicate: predicate}} <- @standard_types_lookup do

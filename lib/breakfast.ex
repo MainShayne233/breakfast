@@ -1,6 +1,6 @@
 defmodule Breakfast do
   alias Breakfast.CompileError
-  alias Breakfast.Digest.{Data, Field}
+  alias Breakfast.Digest.{Decoder, Field}
 
   @type quoted :: term()
 
@@ -18,38 +18,41 @@ defmodule Breakfast do
     do_defdecoder(name, [], block)
   end
 
+  @spec do_defdecoder(module_name :: quoted(), options :: Keyword.t(), block :: quoted()) ::
+          quoted() | no_return()
   defp do_defdecoder(name, options, block) do
     name
-    |> Breakfast.Digest.digest_data(block, options)
+    |> Breakfast.Digest.digest_decoder(block, options)
     |> define_module()
   rescue
     error in CompileError ->
       raise CompileError.new_module_define_error(name, error)
   end
 
-  @spec define_module(Data.t()) :: quoted()
-  defp define_module(data) do
+  @spec define_module(Decoder.t()) :: quoted()
+  defp define_module(decoder) do
     quote do
-      defmodule unquote(data.name) do
+      defmodule unquote(decoder.name) do
         alias Breakfast.{DecodeError, ErrorContext}
 
-        unquote_splicing(Enum.map(data.datas, &define_module/1))
+        unquote_splicing(Enum.map(decoder.decoders, &define_module/1))
 
-        unquote(define_type(data))
+        unquote(define_type(decoder))
 
-        unquote(build_struct(data))
+        unquote(build_struct(decoder))
 
-        unquote(define_validators(data))
+        unquote(define_validators(decoder))
       end
     end
   end
 
   @non_raise_error_types [:parse_error, :validate_error, :cast_error]
 
-  @spec define_validators(Data.t()) :: quoted()
-  defp define_validators(data) do
+  @spec define_validators(Decoder.t()) :: quoted()
+  defp define_validators(decoder) do
     quote do
-      def decode(%{} = params) do
+      @spec decode(params :: term()) :: {:ok, t()} | {:error, DecodeError.t()}
+      def decode(params) do
         with {:error, %ErrorContext{} = context} <- __decode__(params) do
           case DecodeError.from_context(context, params) do
             %DecodeError{type: error_type} = error
@@ -62,7 +65,8 @@ defmodule Breakfast do
         end
       end
 
-      def __decode__(%{} = params) do
+      @spec __decode__(params :: term()) :: {:ok, t()} | {:error, ErrorContext.t()}
+      def __decode__(params) do
         Enum.reduce_while(@all_keys, [], fn field_name, validated_fields ->
           case decode_field(field_name, params) do
             {:ok, field_value} ->
@@ -81,20 +85,21 @@ defmodule Breakfast do
         end
       end
 
-      unquote(define_field_validators(data))
+      unquote(define_field_validators(decoder))
     end
   end
 
-  @spec define_field_validators(Data.t()) :: quoted()
-  defp define_field_validators(data) do
+  @spec define_field_validators(Decoder.t()) :: quoted()
+  defp define_field_validators(decoder) do
     quote do
-      (unquote_splicing(Enum.map(data.fields, &define_field_validator/1)))
+      (unquote_splicing(Enum.map(decoder.fields, &define_field_validator/1)))
     end
   end
 
   @spec define_field_validator(Field.t()) :: quoted()
   defp define_field_validator(field) do
     quote do
+      @spec decode_field(field_name :: atom(), params :: term()) :: {:ok, term()} | {:error, ErrorContext.t()}
       defp decode_field(unquote(field.name), params) do
         with {:ok, parsed_value} <- unquote(field.parse).(params),
              {:ok, casted_value} <- unquote(field.cast).(parsed_value),
@@ -105,22 +110,22 @@ defmodule Breakfast do
     end
   end
 
-  @spec define_type(Data.t()) :: quoted()
-  defp define_type(data) do
+  @spec define_type(Decoder.t()) :: quoted()
+  defp define_type(decoder) do
     quote do
       @type t :: %__MODULE__{
-              unquote_splicing(field_types(data))
+              unquote_splicing(field_types(decoder))
             }
     end
   end
 
-  @spec field_types(Data.t()) :: quoted()
-  defp field_types(data), do: for(field <- data.fields, do: {field.name, field.type})
+  @spec field_types(Decoder.t()) :: quoted()
+  defp field_types(decoder), do: for(field <- decoder.fields, do: {field.name, field.type})
 
-  @spec build_struct(Data.t()) :: quoted()
-  defp build_struct(data) do
+  @spec build_struct(Decoder.t()) :: quoted()
+  defp build_struct(decoder) do
     quote do
-      @struct_fields unquote(struct_fields(data.fields))
+      @struct_fields unquote(struct_fields(decoder.fields))
       @enforce_keys Enum.reject(@struct_fields, &match?({_, _}, &1))
       @all_keys Enum.map(@struct_fields, &with({key, _} <- &1, do: key))
       defstruct @struct_fields

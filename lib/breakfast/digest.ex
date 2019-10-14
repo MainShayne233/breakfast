@@ -1,6 +1,6 @@
 defmodule Breakfast.Digest do
   defmodule Field do
-    alias Breakfast.Digest.Data
+    alias Breakfast.Digest.Decoder
     alias Breakfast.Type
 
     @type map_resulter :: (term() -> {:ok, term()} | :error)
@@ -15,22 +15,22 @@ defmodule Breakfast.Digest do
             cast: map_resulter(),
             validate: resulter(),
             options: Keyword.t(),
-            defined_decoder: {:ok, Data.t()} | :error
+            defined_decoder: {:ok, Decoder.t()} | :error
           }
 
     @enforce_keys [:name, :type, :default, :parse, :cast, :validate, :options, :defined_decoder]
     defstruct @enforce_keys
   end
 
-  defmodule Data do
+  defmodule Decoder do
     @type t :: %__MODULE__{
             name: term(),
             fields: [Field.t()],
-            datas: [t()]
+            decoders: [t()]
           }
 
     @enforce_keys [:name]
-    @keys_with_defaults [fields: [], datas: []]
+    @keys_with_defaults [fields: [], decoders: []]
 
     defstruct @enforce_keys ++ @keys_with_defaults
   end
@@ -40,18 +40,18 @@ defmodule Breakfast.Digest do
   @type block :: {:__block__, term(), list()}
 
   @doc """
-  Handles parsing the definition and defining a single Data.t() to describe it.
+  Handles parsing the definition and defining a single Decoder.t() to describe it.
   """
-  @spec digest_data(name :: term(), block() | term(), Keyword.t()) :: Data.t()
-  def digest_data(name, {:__block__, _, expressions}, options) do
+  @spec digest_decoder(name :: term(), block() | term(), Keyword.t()) :: Decoder.t()
+  def digest_decoder(name, {:__block__, _, expressions}, options) do
     sections = Enum.group_by(expressions, &elem(&1, 0), &elem(&1, 2))
 
-    datas =
+    decoders =
       sections
       |> Map.get(:defdecoder, [])
       |> Enum.map(fn
-        [name, [do: block]] -> digest_data(name, block, [])
-        [name, options, [do: block]] -> digest_data(name, block, options)
+        [name, [do: block]] -> digest_decoder(name, block, [])
+        [name, options, [do: block]] -> digest_decoder(name, block, options)
       end)
 
     validators =
@@ -61,28 +61,28 @@ defmodule Breakfast.Digest do
     fields =
       sections
       |> Map.get(:field, [])
-      |> Enum.map(&digest_field(&1, datas, validators, options))
+      |> Enum.map(&digest_field(&1, decoders, validators, options))
 
-    %Data{
+    %Decoder{
       name: name,
       fields: fields,
-      datas: datas
+      decoders: decoders
     }
   end
 
-  def digest_data(name, expr, options) do
-    digest_data(name, {:__block__, [], [expr]}, options)
+  def digest_decoder(name, expr, options) do
+    digest_decoder(name, {:__block__, [], [expr]}, options)
   end
 
-  @spec digest_field(list(), [Data.t()], list(), Keyword.t()) :: Field.t()
-  defp digest_field([field_name, type | rest], datas, validators, data_options) do
+  @spec digest_field(list(), [Decoder.t()], list(), Keyword.t()) :: Field.t()
+  defp digest_field([field_name, type | rest], decoders, validators, decoder_options) do
     options = Enum.at(rest, 0, [])
 
     params =
       [name: field_name, type: type]
-      |> digest_defined_decoder(datas)
+      |> digest_defined_decoder(decoders)
       |> digest_default(options)
-      |> digest_parse(field_name, options, data_options)
+      |> digest_parse(field_name, options, decoder_options)
       |> digest_cast(options)
       |> digest_validate(field_name, type, options, validators)
       |> Keyword.put(:options, options)
@@ -90,14 +90,14 @@ defmodule Breakfast.Digest do
     struct!(Field, params)
   end
 
-  defp digest_defined_decoder(params, datas) do
+  defp digest_defined_decoder(params, decoders) do
     defined_decoder =
       case Keyword.fetch!(params, :type) do
         {:external, {{:., _, [name, _]}, _, _}} ->
           {:ok, name}
 
         type ->
-          Enum.find_value(datas, :error, fn %Data{name: name} ->
+          Enum.find_value(decoders, :error, fn %Decoder{name: name} ->
             expected_type_spec = quote(do: unquote(name).t())
 
             if Macro.to_string(expected_type_spec) == Macro.to_string(type) do
@@ -193,7 +193,7 @@ defmodule Breakfast.Digest do
     Keyword.put(params, :cast, cast_field)
   end
 
-  defp digest_parse(params, field_name, options, data_options) do
+  defp digest_parse(params, field_name, options, decoder_options) do
     parse =
       case Keyword.fetch(options, :parse) do
         {:ok, parse} ->
@@ -217,7 +217,7 @@ defmodule Breakfast.Digest do
           end
 
         :error ->
-          case Keyword.fetch(data_options, :default_parse) do
+          case Keyword.fetch(decoder_options, :default_parse) do
             {:ok, parse} ->
               quote(do: fn params -> unquote(parse).(params, unquote(field_name)) end)
 
