@@ -47,58 +47,110 @@ defmodule BreakfastTest do
     end
 
     test "should result in a parse error if a field is missing", %{params: params} do
-      assert User.decode(Map.delete(params, "age")) ==
+      params = Map.delete(params, "age")
+
+      assert User.decode(params) ==
                {:error,
                 %Breakfast.DecodeError{
-                  message: "Could not parse field from params",
                   type: :parse_error,
-                  value: :age
+                  field_path: [:age],
+                  input: params,
+                  message: """
+                  Failed to parse field at: input[age].
+
+                  Either the input value did not have a parsable value for this field,
+                  or the parsing isn't correctly setup for this field. If the latter, check
+                  the docs on how to define custom parse functions.
+                  """
                 }}
     end
 
     test "should result in a parse error if the custom parse function returns :error", %{
       params: params
     } do
-      assert User.decode(Map.put(params, "UserStatus", "Canclled")) ==
+      params = Map.put(params, "UserStatus", "Cancelled")
+
+      assert User.decode(params) ==
                {:error,
                 %Breakfast.DecodeError{
-                  message: "Could not parse field from params",
                   type: :parse_error,
-                  value: :status
+                  field_path: [:status],
+                  input: params,
+                  message: """
+                  Failed to parse field at: input[status].
+
+                  Either the input value did not have a parsable value for this field,
+                  or the parsing isn't correctly setup for this field. If the latter, check
+                  the docs on how to define custom parse functions.
+                  """
                 }}
     end
 
     test "should raise a runtime exception if the custom parse returns a bad value", %{
       params: params
     } do
+      params = Map.put(params, "UserStatus", "Approved")
+
       assert assert_raise(Breakfast.DecodeError, fn ->
-               User.decode(Map.put(params, "UserStatus", "Approved"))
-             end) == %Breakfast.DecodeError{
-               message:
-                 "The parse function defined for the field returned an invald type. Expected {:ok, term()} | :error, but got: \"Approved\"",
-               type: :bad_parse_return,
-               value: [field: :status, bad_return: "Approved"]
-             }
+               User.decode(params)
+             end) ==
+               %Breakfast.DecodeError{
+                 field_path: [:status],
+                 input: params,
+                 problem_value: "Approved",
+                 type: :bad_parse_return,
+                 message: """
+                 An invalid value was returned by the parser for the field at: input[status].
+
+                 Instead of returning {:ok, term()} | :error, the parse function for this field returned \"Approved\".
+                 """
+               }
     end
 
     test "should complain about invalid value for field", %{params: params} do
-      assert User.decode(Map.put(params, "email", :shayneAThotmailDOTcom)) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  message: "Invalid value for field",
-                  type: :validate_error,
-                  value: {:email, :shayneAThotmailDOTcom}
-                }}
+      params = Map.put(params, "email", :shayneAThotmailDOTcom)
+
+      assert User.decode(params) ==
+               {
+                 :error,
+                 %Breakfast.DecodeError{
+                   field_path: [:email],
+                   input: params,
+                   problem_value: :shayneAThotmailDOTcom,
+                   type: :validate_error,
+                   message: """
+                   The validation check failed for the value for the field at the following path: input[email].
+
+                   The value that failed the validate check was: :shayneAThotmailDOTcom.
+
+                   Either the value for this field was invalid, or the validate function for this
+                   field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
+                   """
+                 }
+               }
     end
 
     test "should complain about a bad cast", %{params: params} do
-      assert User.decode(Map.put(params, "age", :"10")) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  message: "Value failed to cast",
-                  type: :cast_error,
-                  value: {:age, :"10"}
-                }}
+      params = Map.put(params, "age", :"10")
+
+      assert User.decode(params) ==
+               {
+                 :error,
+                 %Breakfast.DecodeError{
+                   field_path: [:age],
+                   input: params,
+                   problem_value: :"10",
+                   type: :cast_error,
+                   message: """
+                   The cast step failed for the value for the field at the following path: input[age].
+
+                   The value that failed to cast was: :"10".
+
+                   Either the value for this field was invalid, or the cast function for this
+                   field isn't setup correctly. If the latter, check the docs on how to define custom cast functions.
+                   """
+                 }
+               }
     end
   end
 
@@ -259,12 +311,32 @@ defmodule BreakfastTest do
       end
     end
 
-    @tag :only
     test "If a deeply nested decoder fails, the error should be reporting from that level" do
-      assert match?({:ok, _}, SuperNestedDecoder.Data.decode(%{"a" => %{"b" => %{"c" => %{"value" => 1}}}}))
+      params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
 
-      SuperNestedDecoder.Data.decode(%{"a" => %{"b" => %{"c" => %{"value" => ""}}}})
-      |> IO.inspect
+      assert match?(
+               {:ok, _},
+               SuperNestedDecoder.Data.decode(params)
+             )
+
+      params = put_in(params["a"]["b"]["c"]["value"], "")
+
+      assert SuperNestedDecoder.Data.decode(params) ==
+               {:error,
+                %Breakfast.DecodeError{
+                  field_path: [:a, :b, :c, :value],
+                  input: params,
+                  problem_value: "",
+                  type: :validate_error,
+                  message: """
+                  The validation check failed for the value for the field at the following path: input[a -> b -> c -> value].
+
+                  The value that failed the validate check was: "".
+
+                  Either the value for this field was invalid, or the validate function for this
+                  field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
+                  """
+                }}
     end
   end
 end

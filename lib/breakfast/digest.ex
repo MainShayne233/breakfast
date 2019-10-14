@@ -35,7 +35,7 @@ defmodule Breakfast.Digest do
     defstruct @enforce_keys ++ @keys_with_defaults
   end
 
-  alias Breakfast.{CompileError, DecodeError, Type}
+  alias Breakfast.{CompileError, ErrorContext, Type}
 
   @type block :: {:__block__, term(), list()}
 
@@ -83,7 +83,7 @@ defmodule Breakfast.Digest do
       |> digest_defined_decoder(datas)
       |> digest_default(options)
       |> digest_parse(field_name, options, data_options)
-      |> digest_cast(field_name, options)
+      |> digest_cast(options)
       |> digest_validate(field_name, type, options, validators)
       |> Keyword.put(:options, options)
 
@@ -123,10 +123,8 @@ defmodule Breakfast.Digest do
           quote do
             fn value ->
               with invalid_return when not is_boolean(invalid_return) <- unquote(validate).(value) do
-                raise DecodeError.new_bad_validate_return_error(
-                        unquote(field_name),
-                        invalid_return
-                      )
+                {:error, %ErrorContext{error_type: :bad_validate_return},
+                 problem_value: invalid_return}
               end
             end
           end
@@ -149,7 +147,10 @@ defmodule Breakfast.Digest do
               :ok
 
             false ->
-              {:error, DecodeError.new_validate_error(unquote(field_name), value)}
+              {:error, %ErrorContext{error_type: :validate_error, problem_value: value}}
+
+            {:error, %ErrorContext{} = context} ->
+              {:error, context}
           end
         end
       end
@@ -167,7 +168,7 @@ defmodule Breakfast.Digest do
     end
   end
 
-  defp digest_cast(params, field_name, options) do
+  defp digest_cast(params, options) do
     cast =
       case Keyword.fetch(options, :cast) do
         {:ok, cast} ->
@@ -180,8 +181,12 @@ defmodule Breakfast.Digest do
                 :error ->
                   :error
 
-                other ->
-                  raise DecodeError.new_bad_cast_return_error(unquote(field_name), other)
+                invalid_return ->
+                  {:error,
+                   %ErrorContext{
+                     error_type: :bad_cast_return,
+                     problem_value: invalid_return
+                   }}
               end
             end
           end
@@ -189,7 +194,7 @@ defmodule Breakfast.Digest do
         :error ->
           case Keyword.fetch!(params, :defined_decoder) do
             {:ok, decoder} ->
-              quote(do: &unquote(decoder).decode(&1))
+              quote(do: &unquote(decoder).__decode__(&1))
 
             :error ->
               quote(do: &Tuple.append({:ok}, &1))
@@ -200,15 +205,14 @@ defmodule Breakfast.Digest do
       quote do
         fn value ->
           case unquote(cast).(value) do
-            {:ok, casted_value} ->
-              {:ok, casted_value}
-
-            {:error, %DecodeError{} = error} ->
-              {:error, error}
+            {:ok, value} ->
+              {:ok, value}
 
             :error ->
-              {:error, DecodeError.new_cast_error(unquote(field_name), value)}
+              {:error, %ErrorContext{error_type: :cast_error, problem_value: value}}
 
+            {:error, %ErrorContext{} = context} ->
+              {:error, context}
           end
         end
       end
@@ -229,8 +233,12 @@ defmodule Breakfast.Digest do
                 :error ->
                   :error
 
-                other ->
-                  raise DecodeError.new_bad_parse_return_error(unquote(field_name), other)
+                invalid_return ->
+                  {:error,
+                   %ErrorContext{
+                     error_type: :bad_parse_return,
+                     problem_value: invalid_return
+                   }}
               end
             end
           end
@@ -252,6 +260,9 @@ defmodule Breakfast.Digest do
             {:ok, value} ->
               {:ok, value}
 
+            {:error, %ErrorContext{} = context} ->
+              {:error, context}
+
             :error ->
               unquote(
                 case Keyword.fetch!(params, :default) do
@@ -259,7 +270,10 @@ defmodule Breakfast.Digest do
                     {:ok, default_value}
 
                   :error ->
-                    {:error, Macro.escape(DecodeError.new_parse_error(field_name))}
+                    {:error, Macro.escape(%ErrorContext{error_type: :parse_error})}
+
+                  {:error, %ErrorContext{} = context} ->
+                    {:error, context}
                 end
               )
           end

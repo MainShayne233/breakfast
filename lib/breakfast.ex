@@ -31,6 +31,8 @@ defmodule Breakfast do
   defp define_module(data) do
     quote do
       defmodule unquote(data.name) do
+        alias Breakfast.{DecodeError, ErrorContext}
+
         unquote_splicing(Enum.map(data.datas, &define_module/1))
 
         unquote(define_type(data))
@@ -42,17 +44,32 @@ defmodule Breakfast do
     end
   end
 
+  @non_raise_error_types [:parse_error, :validate_error, :cast_error]
+
   @spec define_validators(Data.t()) :: quoted()
   defp define_validators(data) do
     quote do
       def decode(%{} = params) do
+        with {:error, %ErrorContext{} = context} <- __decode__(params) do
+          case DecodeError.from_context(context, params) do
+            %DecodeError{type: error_type} = error
+            when error_type in unquote(@non_raise_error_types) ->
+              {:error, error}
+
+            %DecodeError{} = error_to_raise ->
+              raise error_to_raise
+          end
+        end
+      end
+
+      def __decode__(%{} = params) do
         Enum.reduce_while(@all_keys, [], fn field_name, validated_fields ->
           case decode_field(field_name, params) do
             {:ok, field_value} ->
               {:cont, [{field_name, field_value} | validated_fields]}
 
-            {:error, error} ->
-              {:halt, {:error, error}}
+            {:error, %ErrorContext{} = error_context} ->
+              {:halt, {:error, ErrorContext.prepend_field(error_context, field_name)}}
           end
         end)
         |> case do

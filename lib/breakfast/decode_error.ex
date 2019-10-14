@@ -3,43 +3,110 @@ defmodule Breakfast.DecodeError do
   Defines exceptions that can occur when data is being decoded.
   """
 
-  defexception [:type, :value, :message]
+  alias Breakfast.ErrorContext
 
-  def new_parse_error(fieldname),
-    do: %__MODULE__{
+  defexception [:type, :message, {:field_path, []}, :input, {:problem_value, :__na__}]
+
+  def from_context(
+        %ErrorContext{
+          error_type: :parse_error,
+          field_path: field_path,
+          problem_value: :__na__
+        },
+        input
+      ) do
+    %__MODULE__{
       type: :parse_error,
-      value: fieldname,
-      message: "Could not parse field from params"
-    }
+      field_path: field_path,
+      input: input,
+      message: """
+      Failed to parse field at: #{field_path_display(field_path)}.
 
-  def new_validate_error(field_name, value),
-    do: %__MODULE__{
+      Either the input value did not have a parsable value for this field,
+      or the parsing isn't correctly setup for this field. If the latter, check
+      the docs on how to define custom parse functions.
+      """
+    }
+  end
+
+  def from_context(
+        %Breakfast.ErrorContext{
+          error_type: :bad_parse_return,
+          field_path: field_path,
+          problem_value: problem_value
+        },
+        input
+      ) do
+    %__MODULE__{
+      type: :bad_parse_return,
+      field_path: field_path,
+      input: input,
+      problem_value: problem_value,
+      message: """
+      An invalid value was returned by the parser for the field at: #{
+        field_path_display(field_path)
+      }.
+
+      Instead of returning {:ok, term()} | :error, the parse function for this field returned #{
+        inspect(problem_value)
+      }.
+      """
+    }
+  end
+
+  def from_context(
+        %Breakfast.ErrorContext{
+          error_type: :validate_error,
+          field_path: field_path,
+          problem_value: problem_value
+        },
+        input
+      ) do
+    %__MODULE__{
       type: :validate_error,
-      value: {field_name, value},
-      message: "Invalid value for field"
-    }
+      field_path: field_path,
+      input: input,
+      problem_value: problem_value,
+      message: """
+      The validation check failed for the value for the field at the following path: #{
+        field_path_display(field_path)
+      }.
 
-  def new_cast_error(field_name, value),
-    do: %__MODULE__{
+      The value that failed the validate check was: #{inspect(problem_value)}.
+
+      Either the value for this field was invalid, or the validate function for this
+      field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
+      """
+    }
+  end
+
+  def from_context(
+        %Breakfast.ErrorContext{
+          error_type: :cast_error,
+          field_path: field_path,
+          problem_value: problem_value
+        },
+        input
+      ) do
+    %__MODULE__{
       type: :cast_error,
-      value: {field_name, value},
-      message: "Value failed to cast"
-    }
+      field_path: field_path,
+      input: input,
+      problem_value: problem_value,
+      message: """
+      The cast step failed for the value for the field at the following path: #{
+        field_path_display(field_path)
+      }.
 
-  [
-    parse: "{:ok, term()} | :error",
-    cast: "{:ok, term()} | :error",
-    validate: ":ok | :error"
-  ]
-  |> Enum.map(fn {func_type, expected_pattern} ->
-    def unquote(String.to_atom("new_bad_#{func_type}_return_error"))(field_name, value),
-      do: %__MODULE__{
-        type: String.to_atom("bad_#{unquote(func_type)}_return"),
-        value: [field: field_name, bad_return: value],
-        message:
-          "The #{unquote(func_type)} function defined for the field returned an invald type. Expected #{
-            unquote(expected_pattern)
-          }, but got: #{inspect(value)}"
-      }
-  end)
+      The value that failed to cast was: #{inspect(problem_value)}.
+
+      Either the value for this field was invalid, or the cast function for this
+      field isn't setup correctly. If the latter, check the docs on how to define custom cast functions.
+      """
+    }
+  end
+
+  defp field_path_display(paths) do
+    "input[" <> Enum.join(paths, " -> ") <> "]"
+  end
 end
