@@ -33,7 +33,7 @@ defmodule Breakfast.CompileError do
       Macro.to_string(field_type)
     }.
 
-    You can define a validat function inline with the field, like:
+    You can define a validate function inline with the field, like:
 
     defdecoder ... do
       field(#{field_name}, #{Macro.to_string(field_type)}, validate: fn value -> ... end)
