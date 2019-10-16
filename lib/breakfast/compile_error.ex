@@ -76,9 +76,9 @@ defmodule Breakfast.CompileError do
 
       validate(#{Macro.to_string(bad_type)}, fn value ->
         if ... do
-          :ok
+          true
         else
-          :error
+          false
         end
       end)
     end
