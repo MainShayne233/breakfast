@@ -7,7 +7,7 @@ defmodule BreakfastTest do
     use Breakfast
     alias __MODULE__.User
 
-    defdecoder User do
+    cereal User do
       field(:email, String.t())
       field(:age, integer(), cast: &Client.int_from_string/1)
       field(:timezone, String.t(), default: "US")
@@ -163,7 +163,7 @@ defmodule BreakfastTest do
                  use Breakfast
                  @type status :: :approved | :pending | :rejected
 
-                 defdecoder Request do
+                 cereal Request do
                    field(:statuses, Client.status())
                  end
                end
@@ -173,7 +173,7 @@ defmodule BreakfastTest do
                 use Breakfast
                 @type status :: :approved | :pending | :rejected
 
-                defdecoder Request do
+                cereal Request do
                   field(:statuses, [Client.status()])
 
                   validate(Client.status(), fn value ->
@@ -187,7 +187,7 @@ defmodule BreakfastTest do
   testmodule DefaultParse do
     use Breakfast
 
-    defdecoder JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
+    cereal JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
       field(:first_name, String.t())
       field(:last_name, String.t())
     end
@@ -211,7 +211,7 @@ defmodule BreakfastTest do
   testmodule DefaultParseOverride do
     use Breakfast
 
-    defdecoder JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
+    cereal JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
       field(:first_name, String.t())
       field(:last_name, String.t())
       field(:age, integer(), parse: &Map.fetch(&1, "UserAge"))
@@ -237,11 +237,11 @@ defmodule BreakfastTest do
   testmodule NestedDecoder do
     use Breakfast
 
-    defdecoder User do
+    cereal User do
       field(:email, String.t())
       field(:config, Config.t())
 
-      defdecoder Config do
+      cereal Config do
         field(:sleep_timeout, integer())
         field(:timezone, String.t())
       end
@@ -266,12 +266,12 @@ defmodule BreakfastTest do
   testmodule ExternalDecoder do
     use Breakfast
 
-    defdecoder User do
+    cereal User do
       field(:email, String.t())
       field(:config, {:external, BreakfastTest.ExternalDecoder.Config.t()})
     end
 
-    defdecoder Config do
+    cereal Config do
       field(:sleep_timeout, integer())
       field(:timezone, String.t())
     end
@@ -295,16 +295,16 @@ defmodule BreakfastTest do
   testmodule SuperNestedDecoder do
     use Breakfast
 
-    defdecoder Decoder do
+    cereal Decoder do
       field(:a, A.t())
 
-      defdecoder A do
+      cereal A do
         field(:b, B.t())
 
-        defdecoder B do
+        cereal B do
           field(:c, C.t())
 
-          defdecoder C do
+          cereal C do
             field(:value, number())
           end
         end

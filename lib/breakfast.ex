@@ -6,43 +6,87 @@ defmodule Breakfast do
 
   defmacro __using__(_) do
     quote do
-      import Breakfast, only: [defdecoder: 2, defdecoder: 3]
+      import Breakfast, only: [cereal: 1, cereal: 2]
+
+      Module.register_attribute(__MODULE__, :breakfast_fields, accumulate: true)
+      Module.register_attribute(__MODULE__, :breakfast_validates, accumulate: true)
+      Module.register_attribute(__MODULE__, :breakfast_casts, accumulate: true)
     end
   end
 
-  defmacro defdecoder(name, options, do: block) do
-    do_defdecoder(name, options, block)
-  end
-
-  defmacro defdecoder(name, do: block) do
-    do_defdecoder(name, [], block)
-  end
-
-  @spec do_defdecoder(module_name :: quoted(), options :: Keyword.t(), block :: quoted()) ::
-          quoted() | no_return()
-  defp do_defdecoder(name, options, block) do
-    name
-    |> Breakfast.Digest.digest_decoder(block, options)
-    |> define_module()
-  rescue
-    error in CompileError ->
-      raise CompileError.new_module_define_error(name, error)
-  end
-
-  @spec define_module(Decoder.t()) :: quoted()
-  defp define_module(decoder) do
+  defmacro cereal(options \\ [], do: block) do
     quote do
-      defmodule unquote(decoder.name) do
-        alias Breakfast.{DecodeError, ErrorContext}
+      default_validates = %{
+        {{:., [], [{:__aliases__, [], [:String]}, :t]}, [], []} => fn _ -> true end,
+        {:integer, [], []} => &is_integer/1,
+        {:float, [], []} => &is_float/1,
+      }
 
-        unquote_splicing(Enum.map(decoder.decoders, &define_module/1))
+      default_casts = %{
+        {{:., [], [{:__aliases__, [], [:String]}, :t]}, [], []} => fn term -> term end,# &Function.identity/1,
+        {:integer, [], []} => &Breakfast.Cast.integer/1,
+        {:float, [], []} => &Breakfast.Cast.float/1,
+      }
 
-        unquote(define_type(decoder))
-
-        unquote(build_struct(decoder))
-
-        unquote(define_validators(decoder))
+      try do
+        import Breakfast, only: [field: 2, field: 3, validate: 2, validate: 3, cast: 2, cast: 3]
+        unquote(block)
+      after
+        :ok
       end
+
+      fields = Enum.reverse(@breakfast_fields)
+
+      validates = Enum.into(@breakfast_validates, default_validates, fn {type, validator, opts} -> {type, {validator, opts}} end)
+      casts = Enum.into(@breakfast_casts, default_casts, fn {type, cast, opts} -> {type, {cast, opts}} end)
+
+      Breakfast.check_validates(fields, validates)
+      Breakfast.check_cast(fields, casts)
+
+      defstruct Enum.map(fields, fn {name, _, _} -> name end)
+    end
+  end
+
+  def check_validates(fields, validates) do
+    Enum.each(fields, fn {name, type, opts} ->
+      with false <- Keyword.has_key?(opts, :validate),
+           false <- Map.has_key?(validates, type) do
+        raise "%CompileError{}: No validator for #{name} (#{Macro.to_string(type)})"
+      end
+    end)
+  end
+
+  def check_cast(fields, casts) do
+    Enum.each(fields, fn {name, type, opts} ->
+      with false <- Keyword.has_key?(opts, :cast),
+           false <- Map.has_key?(casts, type) do
+        raise "%CompileError{}: No cast for #{name} (#{Macro.to_string(type)})"
+      end
+    end)
+  end
+
+
+  defmacro field(name, typespec, opts \\ []) do
+    type = Macro.escape(typespec, prune_metadata: true)
+
+    quote do
+      Module.put_attribute(__MODULE__, :breakfast_fields, {unquote(name), unquote(type), unquote(opts)})
+    end
+  end
+
+  defmacro validate(typespec, validator, opts \\ []) do
+    type = Macro.escape(typespec, prune_metadata: true)
+
+    quote do
+      Module.put_attribute(__MODULE__, :breakfast_validates, {unquote(type), unquote(validator), unquote(opts)})
+    end
+  end
+
+  defmacro cast(typespec, cast, opts \\ []) do
+    type = Macro.escape(typespec, prune_metadata: true)
+
+    quote do
+      Module.put_attribute(__MODULE__, :breakfast_casts, {unquote(type), unquote(cast), unquote(opts)})
     end
   end
 
