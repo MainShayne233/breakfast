@@ -27,9 +27,9 @@ defmodule Breakfast do
 
     quote do
       default_validators = %{
-        :string => &is_binary/1,
-        :integer => &is_integer/1,
-        :float => &is_float/1
+        :string => &Breakfast.Validate.string/1,
+        :integer => &Breakfast.Validate.integer/1,
+        :float => &Breakfast.Validate.float/1
       }
 
       default_casters = %{
@@ -54,8 +54,8 @@ defmodule Breakfast do
       all_validators = Map.merge(default_validators, custom_validators)
       all_casters = Map.merge(default_casters, custom_casters)
 
-      unless unquote(cereal_validator), do: Breakfast.check_validators(raw_fields, all_validators)
       unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, all_casters)
+      unless unquote(cereal_validator), do: Breakfast.check_validators(raw_fields, all_validators)
 
       @breakfast_fields Enum.map(raw_fields, fn {name, type, _opts} = raw_field ->
                           %Field{mod: __MODULE__, name: name, type: type}
@@ -73,6 +73,8 @@ defmodule Breakfast do
                         end)
 
       defstruct Enum.map(raw_fields, fn {name, _, _} -> name end)
+
+      def __cereal__(:fields), do: @breakfast_fields
 
       @spec decode(params :: term()) :: %Breakfast.Yogurt{}
       def decode(params) do
@@ -257,8 +259,8 @@ defmodule Breakfast do
   defp type_from_spec({:number, _, []}), do: :number
   defp type_from_spec({:map, _, []}), do: :map
 
-  defp type_from_spec({{:., _, [{:__aliases__, _, alias_, type}]}, _, _type_params}),
-    do: {:custom, alias_, type}
+  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
+    do: {:custom, {alias_, type}}
 
   defp type_from_spec({type, _, _}), do: {:custom, type}
 
@@ -361,4 +363,60 @@ defmodule Breakfast do
   #      end
   #    end)
   #  end
+
+  @spec decode(mod :: module(), params :: term()) :: %Yogurt{}
+  def decode(mod, params) do
+    Enum.reduce(
+      mod.__cereal__(:fields),
+      %Yogurt{struct: struct(mod)},
+      fn %Field{
+           name: name,
+           type: type,
+           fetcher: fetcher,
+           caster: caster,
+           validator: validator
+         } = field,
+         %Yogurt{errors: errors, struct: struct} = yogurt ->
+        with {:fetch, {:ok, value}} <- {:fetch, fetch(params, field)},
+             {:cast, {:ok, cast_value}} <- {:cast, cast(value, field)},
+             {:validate, []} <- {:validate, validate(cast_value, field)} do
+          %Yogurt{yogurt | struct: %{struct | name => cast_value}}
+        else
+          {:fetch, :error} ->
+            %Yogurt{
+              yogurt
+              | errors: [{name, "Couldn't fetch value for #{name}"} | errors]
+            }
+
+          {:cast, :error} ->
+            %Yogurt{yogurt | errors: [{name, "Cast error for #{name}"} | errors]}
+
+          {:validate, validation_errors} when is_list(validation_errors) ->
+            %Yogurt{
+              yogurt
+              | errors: [Enum.map(validation_errors, &{name, &1}) | errors]
+            }
+
+          {:fetch, retval} ->
+            raise "Expected #{name}.fetch (#{inspect(fetcher)}) to return an {:ok, value} tuple, got #{
+                    inspect(retval)
+                  }"
+
+          {:cast, retval} ->
+            raise "Expected #{name}.cast (#{inspect(caster)}) to return an {:ok, value} tuple or :error, got #{
+                    inspect(retval)
+                  }"
+
+          {:validate, retval} ->
+            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got #{
+                    inspect(retval)
+                  }"
+        end
+      end
+    )
+  end
+
+  @spec unwrap(%Yogurt{}) :: %Yogurt{} | struct()
+  def unwrap(%Yogurt{errors: [], struct: struct}), do: struct
+  def unwrap(%Yogurt{errors: errors} = yogurt) when is_list(errors), do: yogurt
 end
