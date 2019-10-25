@@ -1,6 +1,6 @@
 defmodule Breakfast do
   alias Breakfast.CompileError
-  alias Breakfast.Digest.{Decoder, Field}
+  alias Breakfast.Yogurt
 
   @type quoted :: term()
 
@@ -75,58 +75,6 @@ defmodule Breakfast do
       defstruct Enum.map(raw_fields, fn {name, _, _} -> name end)
 
       def __cereal__(:fields), do: @breakfast_fields
-
-      @spec decode(params :: term()) :: %Breakfast.Yogurt{}
-      def decode(params) do
-        Enum.reduce(
-          @breakfast_fields,
-          %Breakfast.Yogurt{struct: %__MODULE__{}},
-          fn %Breakfast.Field{
-               name: name,
-               type: type,
-               fetcher: fetcher,
-               caster: caster,
-               validator: validator
-             } = field,
-             %Breakfast.Yogurt{errors: errors, struct: struct} = yogurt ->
-            with {:fetch, {:ok, value}} <- {:fetch, Breakfast.fetch(params, field)},
-                 {:cast, {:ok, cast_value}} <- {:cast, Breakfast.cast(value, field)},
-                 {:validate, []} <- {:validate, Breakfast.validate(value, field)} do
-              %Breakfast.Yogurt{yogurt | struct: %{struct | name => cast_value}}
-            else
-              {:fetch, :error} ->
-                %Breakfast.Yogurt{
-                  yogurt
-                  | errors: [{name, "Couldn't fetch value for #{name}"} | errors]
-                }
-
-              {:cast, :error} ->
-                %Breakfast.Yogurt{yogurt | errors: [{name, "Cast error for #{name}"} | errors]}
-
-              {:validate, validation_errors} when is_list(validation_errors) ->
-                %Breakfast.Yogurt{
-                  yogurt
-                  | errors: [Enum.map(validation_errors, &{name, &1}) | errors]
-                }
-
-              {:fetch, retval} ->
-                raise "Expected #{name}.fetch (#{inspect(fetcher)}) to return an {:ok, value} tuple, got #{
-                        inspect(retval)
-                      }"
-
-              {:cast, retval} ->
-                raise "Expected #{name}.cast (#{inspect(caster)}) to return an {:ok, value} tuple or :error, got #{
-                        inspect(retval)
-                      }"
-
-              {:validate, retval} ->
-                raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got #{
-                        inspect(retval)
-                      }"
-            end
-          end
-        )
-      end
     end
   end
 
@@ -166,13 +114,6 @@ defmodule Breakfast do
             cereal_validator || Map.get(default_validators, {name, type}) ||
             Map.get(default_validators, type)
     }
-  end
-
-  defmodule Yogurt do
-    defstruct params: nil, errors: [], struct: nil
-
-    def valid?(%__MODULE__{errors: []}), do: true
-    def valid?(%__MODULE__{errors: [_ | _]}), do: false
   end
 
   def fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
@@ -253,116 +194,14 @@ defmodule Breakfast do
     end
   end
 
-  defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
-  defp type_from_spec({:integer, _, []}), do: :integer
+  defp type_from_spec([spec]), do: {:list, [type_from_spec(spec)]}
   defp type_from_spec({:float, _, []}), do: :float
-  defp type_from_spec({:number, _, []}), do: :number
+  defp type_from_spec({:integer, _, []}), do: :integer
   defp type_from_spec({:map, _, []}), do: :map
-
-  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
-    do: {:custom, {alias_, type}}
-
+  defp type_from_spec({:number, _, []}), do: :number
+  defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
+  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}), do: {:custom, {alias_, type}}
   defp type_from_spec({type, _, _}), do: {:custom, type}
-
-  @non_raise_error_types [:parse_error, :validate_error, :cast_error]
-
-  @spec define_validators(Decoder.t()) :: quoted()
-  defp define_validators(decoder) do
-    quote do
-      @spec decode(params :: term()) :: {:ok, t()} | {:error, DecodeError.t()}
-      def decode(params) do
-        with {:error, %ErrorContext{} = context} <- __decode__(params) do
-          case DecodeError.from_context(context, params) do
-            %DecodeError{type: error_type} = error
-            when error_type in unquote(@non_raise_error_types) ->
-              {:error, error}
-
-            %DecodeError{} = error_to_raise ->
-              raise error_to_raise
-          end
-        end
-      end
-
-      @spec __decode__(params :: term()) :: {:ok, t()} | {:error, ErrorContext.t()}
-      def __decode__(params) do
-        Enum.reduce_while(@all_keys, [], fn field_name, validated_fields ->
-          case decode_field(field_name, params) do
-            {:ok, field_value} ->
-              {:cont, [{field_name, field_value} | validated_fields]}
-
-            {:error, %ErrorContext{} = error_context} ->
-              {:halt, {:error, ErrorContext.prepend_field(error_context, field_name)}}
-          end
-        end)
-        |> case do
-          validated_params when is_list(validated_params) ->
-            {:ok, struct!(__MODULE__, validated_params)}
-
-          {:error, error} ->
-            {:error, error}
-        end
-      end
-
-      unquote(define_field_validators(decoder))
-    end
-  end
-
-  @spec define_field_validators(Decoder.t()) :: quoted()
-  defp define_field_validators(decoder) do
-    quote do
-      (unquote_splicing(Enum.map(decoder.fields, &define_field_validator/1)))
-    end
-  end
-
-  @spec define_field_validator(Field.t()) :: quoted()
-  defp define_field_validator(field) do
-    quote do
-      @spec decode_field(field_name :: atom(), params :: term()) ::
-              {:ok, term()} | {:error, ErrorContext.t()}
-      defp decode_field(unquote(field.name), params) do
-        with {:ok, parsed_value} <- unquote(field.parse).(params),
-             {:ok, casted_value} <- unquote(field.cast).(parsed_value),
-             :ok <- unquote(field.validate).(casted_value) do
-          {:ok, casted_value}
-        end
-      end
-    end
-  end
-
-  #  @spec define_type(Decoder.t()) :: quoted()
-  #  defp define_type(decoder) do
-  #    quote do
-  #      @type t :: %__MODULE__{
-  #              unquote_splicing(field_types(decoder))
-  #            }
-  #    end
-  #  end
-
-  #  @spec field_types(Decoder.t()) :: quoted()
-  #  defp field_types(decoder), do: for(field <- decoder.fields, do: {field.name, field.type})
-
-  #  @spec build_struct(Decoder.t()) :: quoted()
-  #  defp build_struct(decoder) do
-  #    quote do
-  #      @struct_fields unquote(struct_fields(decoder.fields))
-  #      @enforce_keys Enum.reject(@struct_fields, &match?({_, _}, &1))
-  #      @all_keys Enum.map(@struct_fields, &with({key, _} <- &1, do: key))
-  #      defstruct @struct_fields
-  #    end
-  #  end
-  #
-  #  @spec struct_fields([Field.t()]) :: [atom() | {atom(), term()}]
-  #  defp struct_fields(fields) do
-  #    Enum.reduce(fields, [], fn %Field{name: name, options: options}, acc ->
-  #      case Keyword.fetch(options, :default) do
-  #        {:ok, default_value} ->
-  #          [{name, default_value} | acc]
-  #
-  #        :error ->
-  #          [name | acc]
-  #      end
-  #    end)
-  #  end
 
   @spec decode(mod :: module(), params :: term()) :: %Yogurt{}
   def decode(mod, params) do

@@ -6,11 +6,12 @@ defmodule User do
 
   # cereal fetch: ..., cast: ..., validate: ...
   cereal fetch: &Breakfast.Fetch.atom/2 do
-    # using MyTypes
+    # use User.A, only: []
 
     field :name, String.t(), validate: :no_error
     field :email, email(), cast: :identity
     field :website, url()
+    field :tags, [String.t()]
 
     type email(), validate: :validate_email
 
