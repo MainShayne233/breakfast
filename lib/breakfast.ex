@@ -4,6 +4,17 @@ defmodule Breakfast do
 
   @type quoted :: term()
 
+  @known_types [
+    :integer,
+    :number,
+    :float,
+    :string,
+    {:list, :integer},
+    {:list, :number},
+    {:list, :float},
+    {:list, :string}
+  ]
+
   defmodule Field do
     defstruct [:mod, :name, :type, :fetcher, :caster, :validator]
   end
@@ -26,18 +37,6 @@ defmodule Breakfast do
     cereal_fetcher = Keyword.get(opts, :fetch)
 
     quote do
-      default_validators = %{
-        :string => &Breakfast.Validate.string/1,
-        :integer => &Breakfast.Validate.integer/1,
-        :float => &Breakfast.Validate.float/1
-      }
-
-      default_casters = %{
-        :string => &Breakfast.Cast.string/1,
-        :integer => &Breakfast.Cast.integer/1,
-        :float => &Breakfast.Cast.float/1
-      }
-
       try do
         import Breakfast, only: [field: 2, field: 3, type: 2]
         unquote(block)
@@ -51,25 +50,16 @@ defmodule Breakfast do
       custom_casters = Enum.into(@breakfast_casters, %{})
       custom_fetchers = Enum.into(@breakfast_fetchers, %{})
 
-      all_validators = Map.merge(default_validators, custom_validators)
-      all_casters = Map.merge(default_casters, custom_casters)
+      unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, custom_casters)
 
-      unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, all_casters)
-      unless unquote(cereal_validator), do: Breakfast.check_validators(raw_fields, all_validators)
+      unless unquote(cereal_validator),
+        do: Breakfast.check_validators(raw_fields, custom_validators)
 
       @breakfast_fields Enum.map(raw_fields, fn {name, type, _opts} = raw_field ->
                           %Field{mod: __MODULE__, name: name, type: type}
                           |> Breakfast.set_fetcher(custom_fetchers, unquote(cereal_fetcher))
-                          |> Breakfast.set_caster(
-                            custom_casters,
-                            unquote(cereal_caster),
-                            default_casters
-                          )
-                          |> Breakfast.set_validator(
-                            custom_validators,
-                            unquote(cereal_validator),
-                            default_validators
-                          )
+                          |> Breakfast.set_caster(custom_casters, unquote(cereal_caster))
+                          |> Breakfast.set_validator(custom_validators, unquote(cereal_validator))
                         end)
 
       defstruct Enum.map(raw_fields, fn {name, _, _} -> name end)
@@ -83,43 +73,40 @@ defmodule Breakfast do
       field
       | fetcher:
           Map.get(custom_fetchers, {name, type}) || Map.get(custom_fetchers, type) ||
-            cereal_fetcher || (&Breakfast.Fetch.string/2)
+            cereal_fetcher || :default
     }
   end
 
-  def set_caster(
-        %Field{name: name, type: type} = field,
-        custom_casters,
-        cereal_caster,
-        default_casters
-      ) do
+  def set_caster(%Field{name: name, type: type} = field, custom_casters, cereal_caster) do
     %Field{
       field
       | caster:
           Map.get(custom_casters, {name, type}) || Map.get(custom_casters, type) || cereal_caster ||
-            Map.get(default_casters, {name, type}) || Map.get(default_casters, type)
+            :default
     }
   end
 
-  def set_validator(
-        %Field{name: name, type: type} = field,
-        custom_validators,
-        cereal_validator,
-        default_validators
-      ) do
+  def set_validator(%Field{name: name, type: type} = field, custom_validators, cereal_validator) do
     %Field{
       field
       | validator:
           Map.get(custom_validators, {name, type}) || Map.get(custom_validators, type) ||
-            cereal_validator || Map.get(default_validators, {name, type}) ||
-            Map.get(default_validators, type)
+            cereal_validator || :default
     }
   end
+
+  def fetch(params, %Field{name: name, fetcher: :default}),
+    do: Breakfast.Fetch.string(params, name)
 
   def fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
 
+  def cast(value, %Field{caster: :default, type: type}), do: Breakfast.Type.cast(type, value)
+
   def cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
+
+  def validate(value, %Field{validator: :default, type: type}),
+    do: Breakfast.Type.validate(type, value)
 
   def validate(value, %Field{mod: mod, validator: validator}),
     do: apply_fn(mod, validator, [value])
@@ -145,6 +132,7 @@ defmodule Breakfast do
   def check_validators(fields, validators) do
     Enum.each(fields, fn {name, type, opts} ->
       with false <- Keyword.has_key?(opts, :validate),
+           false <- Enum.member?(@known_types, type),
            false <- Map.has_key?(validators, type) do
         raise "%CompileError{}: No validator for :#{name}"
       end
@@ -154,6 +142,7 @@ defmodule Breakfast do
   def check_casters(fields, casters) do
     Enum.each(fields, fn {name, type, opts} ->
       with false <- Keyword.has_key?(opts, :cast),
+           false <- Enum.member?(@known_types, type),
            false <- Map.has_key?(casters, type) do
         raise "%CompileError{}: No cast for :#{name}"
       end
@@ -194,23 +183,25 @@ defmodule Breakfast do
     end
   end
 
-  defp type_from_spec([spec]), do: {:list, [type_from_spec(spec)]}
+  defp type_from_spec([spec]), do: {:list, type_from_spec(spec)}
   defp type_from_spec({:float, _, []}), do: :float
   defp type_from_spec({:integer, _, []}), do: :integer
   defp type_from_spec({:map, _, []}), do: :map
   defp type_from_spec({:number, _, []}), do: :number
   defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
-  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}), do: {:custom, {alias_, type}}
+
+  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
+    do: {:custom, {alias_, type}}
+
   defp type_from_spec({type, _, _}), do: {:custom, type}
 
   @spec decode(mod :: module(), params :: term()) :: %Yogurt{}
   def decode(mod, params) do
     Enum.reduce(
       mod.__cereal__(:fields),
-      %Yogurt{struct: struct(mod)},
+      %Yogurt{struct: struct(mod), params: params},
       fn %Field{
            name: name,
-           type: type,
            fetcher: fetcher,
            caster: caster,
            validator: validator
@@ -222,19 +213,13 @@ defmodule Breakfast do
           %Yogurt{yogurt | struct: %{struct | name => cast_value}}
         else
           {:fetch, :error} ->
-            %Yogurt{
-              yogurt
-              | errors: [{name, "Couldn't fetch value for #{name}"} | errors]
-            }
+            %Yogurt{yogurt | errors: [{name, "value not found"} | errors]}
 
           {:cast, :error} ->
-            %Yogurt{yogurt | errors: [{name, "Cast error for #{name}"} | errors]}
+            %Yogurt{yogurt | errors: [{name, "cast error"} | errors]}
 
           {:validate, validation_errors} when is_list(validation_errors) ->
-            %Yogurt{
-              yogurt
-              | errors: [Enum.map(validation_errors, &{name, &1}) | errors]
-            }
+            %Yogurt{yogurt | errors: [Enum.map(validation_errors, &{name, &1}) | errors]}
 
           {:fetch, retval} ->
             raise "Expected #{name}.fetch (#{inspect(fetcher)}) to return an {:ok, value} tuple, got #{

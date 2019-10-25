@@ -30,9 +30,9 @@ defmodule User do
     end
   end
 
-  def validate_url("https://" <> _, https_only: true), do: []
-  def validate_url(_value, https_only: true), do: ["Invalid scheme"]
-  def validate_url(_value, _opts), do: []
+  def validate_url(%URI{scheme: "https"}, https_only: true), do: []
+  def validate_url(%URI{}, https_only: true), do: ["invalid scheme"]
+  def validate_url(%URI{}, _opts), do: []
 
   def no_error(_), do: []
   def identity(x), do: {:ok, x}
@@ -64,22 +64,22 @@ defmodule Request do
 end
 
 defmodule JSUser do
-    use Breakfast
+  use Breakfast
 
-    cereal fetch: :camel_key_fetch do
-      field :first_name, String.t()
-      field :last_name, String.t()
-      field :age, integer(), fetch: :fetch_age
-    end
+  cereal fetch: :camel_key_fetch do
+    field :first_name, String.t()
+    field :last_name, String.t()
+    field :age, integer(), fetch: :fetch_age
+  end
 
-    def fetch_age(%{"UserAge" => age}, _key), do: {:ok, age}
-    def fetch_age(_, _), do: :error
+  def fetch_age(%{"UserAge" => age}, _key), do: {:ok, age}
+  def fetch_age(_, _), do: :error
 
-    def camel_key_fetch(params, key) do
-      {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
-      camel_key = String.downcase(first_char) <> rest
-      Map.fetch(params, camel_key)
-    end
+  def camel_key_fetch(params, key) do
+    {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
+    camel_key = String.downcase(first_char) <> rest
+    Map.fetch(params, camel_key)
+  end
 end
 
 defmodule Nested do
@@ -99,7 +99,7 @@ defmodule Nested do
     def validate_b(%{}), do: []
     def validate_b(errors) when is_list(errors), do: errors
 
-    #def cast_b(%{} = params), do: {:ok, Breakfast.decode(Nested.B, params)}
+    # def cast_b(%{} = params), do: {:ok, Breakfast.decode(Nested.B, params)}
 
     def cast_b(%{} = params) do
       case Breakfast.decode(Nested.B, params) do
