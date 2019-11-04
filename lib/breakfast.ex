@@ -28,6 +28,7 @@ defmodule Breakfast do
       Module.register_attribute(__MODULE__, :breakfast_validators, accumulate: true)
       Module.register_attribute(__MODULE__, :breakfast_casters, accumulate: true)
       Module.register_attribute(__MODULE__, :breakfast_fetchers, accumulate: true)
+      Module.register_attribute(__MODULE__, :breakfast_field_type_specs, accumulate: true)
     end
   end
 
@@ -35,6 +36,7 @@ defmodule Breakfast do
     cereal_validator = Keyword.get(opts, :validate)
     cereal_caster = Keyword.get(opts, :cast)
     cereal_fetcher = Keyword.get(opts, :fetch)
+    generate_type? = Keyword.get(opts, :generate_type, true)
 
     quote do
       try do
@@ -62,9 +64,19 @@ defmodule Breakfast do
                           |> Breakfast.set_validator(custom_validators, unquote(cereal_validator))
                         end)
 
+      if unquote(generate_type?), do: Breakfast.__define_type_spec__(@breakfast_field_type_specs)
+
       defstruct Enum.map(raw_fields, fn {name, _, _} -> name end)
 
       def __cereal__(:fields), do: @breakfast_fields
+    end
+  end
+
+  defmacro __define_type_spec__(type_specs) do
+    quote bind_quoted: [type_specs: type_specs] do
+      @type breakfast_t :: %__MODULE__{
+              unquote_splicing(type_specs)
+            }
     end
   end
 
@@ -152,18 +164,46 @@ defmodule Breakfast do
   defmacro field(name, spec, opts \\ []) do
     type = type_from_spec(spec)
 
-    quote bind_quoted: [name: name, type: type, opts: opts] do
-      validate = Keyword.get(opts, :validate)
-      cast = Keyword.get(opts, :cast)
-      fetch = Keyword.get(opts, :fetch)
+    quote do
+      validate = Keyword.get(unquote(opts), :validate)
+      cast = Keyword.get(unquote(opts), :cast)
+      fetch = Keyword.get(unquote(opts), :fetch)
 
-      Module.put_attribute(__MODULE__, :breakfast_raw_fields, {name, type, opts})
+      Module.put_attribute(
+        __MODULE__,
+        :breakfast_raw_fields,
+        {unquote(name), unquote(type), unquote(opts)}
+      )
 
       if validate,
-        do: Module.put_attribute(__MODULE__, :breakfast_validators, {{name, type}, validate})
+        do:
+          Module.put_attribute(
+            __MODULE__,
+            :breakfast_validators,
+            {{unquote(name), unquote(type)}, validate}
+          )
 
-      if cast, do: Module.put_attribute(__MODULE__, :breakfast_casters, {{name, type}, cast})
-      if fetch, do: Module.put_attribute(__MODULE__, :breakfast_fetchers, {{name, type}, fetch})
+      if cast,
+        do:
+          Module.put_attribute(
+            __MODULE__,
+            :breakfast_casters,
+            {{unquote(name), unquote(type)}, cast}
+          )
+
+      if fetch,
+        do:
+          Module.put_attribute(
+            __MODULE__,
+            :breakfast_fetchers,
+            {{unquote(name), unquote(type)}, fetch}
+          )
+
+      Module.put_attribute(
+        __MODULE__,
+        :breakfast_field_type_specs,
+        {unquote(name), unquote(Macro.escape(spec))}
+      )
     end
   end
 
