@@ -16,7 +16,7 @@ defmodule Breakfast do
   ]
 
   defmodule Field do
-    defstruct [:mod, :name, :type, :fetcher, :caster, :validator]
+    defstruct [:mod, :name, :type, :fetcher, :caster, :validator, :default]
   end
 
   defmacro __using__(_) do
@@ -28,14 +28,18 @@ defmodule Breakfast do
       Module.register_attribute(__MODULE__, :breakfast_validators, accumulate: true)
       Module.register_attribute(__MODULE__, :breakfast_casters, accumulate: true)
       Module.register_attribute(__MODULE__, :breakfast_fetchers, accumulate: true)
+      Module.register_attribute(__MODULE__, :breakfast_default_values, accumulate: true)
       Module.register_attribute(__MODULE__, :breakfast_field_type_specs, accumulate: true)
     end
   end
 
-  defmacro cereal(opts \\ [], do: block) do
+  defmacro cereal(opts \\ [], expr)
+
+  defmacro cereal(opts, do: block) when is_list(opts) do
     cereal_validator = Keyword.get(opts, :validate)
     cereal_caster = Keyword.get(opts, :cast)
     cereal_fetcher = Keyword.get(opts, :fetch)
+    cereal_default_value = Keyword.fetch(opts, :default)
     generate_type? = Keyword.get(opts, :generate_type, true)
 
     quote do
@@ -51,6 +55,7 @@ defmodule Breakfast do
       custom_validators = Enum.into(@breakfast_validators, %{})
       custom_casters = Enum.into(@breakfast_casters, %{})
       custom_fetchers = Enum.into(@breakfast_fetchers, %{})
+      custom_default_values = Enum.into(@breakfast_default_values, %{})
 
       unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, custom_casters)
 
@@ -62,6 +67,10 @@ defmodule Breakfast do
                           |> Breakfast.set_fetcher(custom_fetchers, unquote(cereal_fetcher))
                           |> Breakfast.set_caster(custom_casters, unquote(cereal_caster))
                           |> Breakfast.set_validator(custom_validators, unquote(cereal_validator))
+                          |> Breakfast.set_default_value(
+                            custom_default_values,
+                            unquote(cereal_default_value)
+                          )
                         end)
 
       if unquote(generate_type?), do: Breakfast.__define_type_spec__(@breakfast_field_type_specs)
@@ -70,6 +79,10 @@ defmodule Breakfast do
 
       def __cereal__(:fields), do: @breakfast_fields
     end
+  end
+
+  defmacro cereal(_bad_opts, _bad_expr) do
+    raise "Invalid cereal definition"
   end
 
   defmacro __define_type_spec__(type_specs) do
@@ -107,10 +120,29 @@ defmodule Breakfast do
     }
   end
 
-  def fetch(params, %Field{name: name, fetcher: :default}),
+  def set_default_value(
+        %Field{name: name, type: type} = field,
+        custom_default_values,
+        cereal_default_value
+      ) do
+    default_value =
+      with :error <- Map.fetch(custom_default_values, {name, type}),
+           :error <- Map.fetch(custom_default_values, type),
+           :error <- cereal_default_value do
+        :error
+      end
+
+    %Field{field | default: default_value}
+  end
+
+  def fetch(params, field) do
+    with :error <- do_fetch(params, field), do: field.default
+  end
+
+  defp do_fetch(params, %Field{name: name, fetcher: :default}),
     do: Breakfast.Fetch.string(params, name)
 
-  def fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
+  defp do_fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
 
   def cast(value, %Field{caster: :default, type: type}), do: Breakfast.Type.cast(type, value)
@@ -165,45 +197,29 @@ defmodule Breakfast do
     type = type_from_spec(spec)
 
     quote do
-      validate = Keyword.get(unquote(opts), :validate)
-      cast = Keyword.get(unquote(opts), :cast)
-      fetch = Keyword.get(unquote(opts), :fetch)
-
       Module.put_attribute(
         __MODULE__,
         :breakfast_raw_fields,
         {unquote(name), unquote(type), unquote(opts)}
       )
 
-      if validate,
-        do:
-          Module.put_attribute(
-            __MODULE__,
-            :breakfast_validators,
-            {{unquote(name), unquote(type)}, validate}
-          )
-
-      if cast,
-        do:
-          Module.put_attribute(
-            __MODULE__,
-            :breakfast_casters,
-            {{unquote(name), unquote(type)}, cast}
-          )
-
-      if fetch,
-        do:
-          Module.put_attribute(
-            __MODULE__,
-            :breakfast_fetchers,
-            {{unquote(name), unquote(type)}, fetch}
-          )
-
       Module.put_attribute(
         __MODULE__,
         :breakfast_field_type_specs,
         {unquote(name), unquote(Macro.escape(spec))}
       )
+
+      [
+        {:validate, :breakfast_validators},
+        {:cast, :breakfast_casters},
+        {:fetch, :breakfast_fetchers},
+        {:default, :breakfast_default_values}
+      ]
+      |> Enum.each(fn {key, attr} ->
+        with {:ok, value} <- Keyword.fetch(unquote(opts), key) do
+          Module.put_attribute(__MODULE__, attr, {{unquote(name), unquote(type)}, value})
+        end
+      end)
     end
   end
 

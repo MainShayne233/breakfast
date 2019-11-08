@@ -88,6 +88,7 @@ defmodule Nested do
 
     cereal do
       field :b, Nested.B.t()
+
       # embed :b, Nested.B.t()
 
       type Nested.B.t(), cast: :cast_b, validate: :validate_b
