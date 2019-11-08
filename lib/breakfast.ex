@@ -275,7 +275,7 @@ defmodule Breakfast do
             %Yogurt{yogurt | errors: [{name, "cast error"} | errors]}
 
           {:validate, validation_errors} when is_list(validation_errors) ->
-            %Yogurt{yogurt | errors: [Enum.map(validation_errors, &{name, &1}) | errors]}
+            %Yogurt{yogurt | errors: Enum.map(validation_errors, &{name, &1}) ++ errors}
 
           {:fetch, retval} ->
             raise "Expected #{name}.fetch (#{inspect(fetcher)}) to return an {:ok, value} tuple, got #{

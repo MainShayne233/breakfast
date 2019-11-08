@@ -12,12 +12,18 @@ defmodule BreakfastTest do
       field(:timezone, String.t(), default: "US")
       field(:roles, [String.t()])
 
-      field(:status, String.t(), fetch: :fetch_status)
+      field(:status, String.t(), fetch: :fetch_status, validate: :validate_status)
     end
 
-    def fetch_status(%{"UserStatus" => "Pending"}, :status), do: {:ok, "Pending"}
-    def fetch_status(%{"UserStatus" => "Approved"}, :status), do: {:ok, "Approved"}
-    def fetch_status(_), do: :error
+    def fetch_status(params, :status), do: Map.fetch(params, "UserStatus")
+
+    def validate_status(status) do
+      if status in ["Approved", "Pending"] do
+        []
+      else
+        ["invalid value"]
+      end
+    end
 
     def int_from_string(value) when is_binary(value) do
       case Integer.parse(value) do
@@ -39,7 +45,6 @@ defmodule BreakfastTest do
       %{params: params}
     end
 
-    @tag :only
     test "should succeed for valid params", %{params: params} do
       result = Breakfast.decode(Client.User, params)
       assert match?(%Breakfast.Yogurt{errors: []}, result)
@@ -47,42 +52,23 @@ defmodule BreakfastTest do
 
     test "should result in a parse error if a field is missing", %{params: params} do
       params = Map.delete(params, "age")
+      result = Breakfast.decode(Client.User, params)
 
-      assert User.decode(params) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  type: :parse_error,
-                  field_path: [:age],
-                  input: params,
-                  message: """
-                  Failed to parse field at: input[age].
-
-                  Either the input value did not have a parsable value for this field,
-                  or the parsing isn't correctly setup for this field. If the latter, check
-                  the docs on how to define custom parse functions.
-                  """
-                }}
+      assert match?(
+               result,
+               %Breakfast.Yogurt{
+                 errors: [age: "value not found"]
+               }
+             )
     end
 
+    @tag :only
     test "should result in a parse error if the custom parse function returns :error", %{
       params: params
     } do
       params = Map.put(params, "UserStatus", "Cancelled")
-
-      assert User.decode(params) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  type: :parse_error,
-                  field_path: [:status],
-                  input: params,
-                  message: """
-                  Failed to parse field at: input[status].
-
-                  Either the input value did not have a parsable value for this field,
-                  or the parsing isn't correctly setup for this field. If the latter, check
-                  the docs on how to define custom parse functions.
-                  """
-                }}
+      result = Breakfast.decode(Client.User, params)
+      assert result.errors == [status: "invalid value"]
     end
 
     test "should raise a runtime exception if the custom parse returns a bad value", %{
