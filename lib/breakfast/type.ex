@@ -26,7 +26,7 @@ defmodule Breakfast.Type do
     with :error <- Integer.parse(term),
          :error <- Float.parse(term),
          do: :error,
-         else: ({number, _} -> :error)
+         else: ({_number, _} -> :error)
   end
 
   def cast({:list, type}, term) when is_list(term) do
@@ -41,7 +41,7 @@ defmodule Breakfast.Type do
     with list when is_list(list) <- list_or_error, do: {:ok, Enum.reverse(list)}
   end
 
-  def cast({:list, _type}, term), do: :error
+  def cast({:list, _type}, _term), do: :error
 
   def validate(:string, term) when is_binary(term), do: []
   def validate(:string, term), do: ["expected a string, got #{inspect(term)}"]
@@ -56,10 +56,13 @@ defmodule Breakfast.Type do
   def validate(:number, term), do: ["expected a number, got #{inspect(term)}"]
 
   def validate({:list, type}, term) when is_list(term) do
-    Enum.reduce_while(term, [], fn t, acc ->
+    Enum.find_value(term, [], fn t ->
       case validate(type, t) do
-        [] -> {:cont, []}
-        [_ | _] = errors -> {:halt, errors}
+        [_ | _] = error ->
+          error
+
+        [] ->
+          false
       end
     end)
   end
