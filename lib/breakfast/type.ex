@@ -11,6 +11,8 @@ defmodule Breakfast.Type do
     end
   end
 
+  def cast(:integer, _term), do: :error
+
   def cast(:float, term) when is_float(term), do: {:ok, term}
 
   def cast(:float, term) when is_binary(term) do
