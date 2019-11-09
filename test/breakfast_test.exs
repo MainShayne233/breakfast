@@ -178,38 +178,55 @@ defmodule BreakfastTest do
     end
   end
 
-  # testmodule NestedDecoder do
-  #   use Breakfast
+  testmodule External do
+    use Breakfast
 
-  #   defmodule Config do
-  #     use Breakfast
+    defmodule Config do
+      use Breakfast
 
-  #     cereal do
-  #       field(:sleep_timeout, integer())
-  #       field(:timezone, String.t())
-  #     end
-  #   end
+      cereal do
+        field(:sleep_timeout, integer())
+        field(:timezone, String.t())
+      end
+    end
 
-  #   cereal do
-  #     field(:email, String.t())
-  #     field(:config, {:external, Config.t()})
-  #   end
+    cereal do
+      field(:email, String.t())
+      field(:config, {:cereal, Config})
+    end
 
-  #   test "should properly handle a nested decoder" do
-  #     assert User.decode(%{
-  #              "email" => "some@email.com",
-  #              "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
-  #            }) ==
-  #              {:ok,
-  #               %User{
-  #                 email: "some@email.com",
-  #                 config: %User.Config{
-  #                   sleep_timeout: 50_000,
-  #                   timezone: "UTC"
-  #                 }
-  #               }}
-  #   end
-  # end
+    test "should properly handle an externally defined cereal" do
+      params = %{
+        "email" => "some@email.com",
+        "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
+      }
+
+      result = Breakfast.decode(__MODULE__, params)
+
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: params,
+               struct: %BreakfastTest.External{
+                 config: %BreakfastTest.External.Config{
+                   sleep_timeout: 50000,
+                   timezone: "UTC"
+                 },
+                 email: "some@email.com"
+               }
+             }
+    end
+
+    test "nested decoding errors should bubble up to top level yogurt" do
+      bad_params = %{
+        "email" => "some@email.com",
+        "config" => %{"sleep_timeout" => [], "timezone" => :UTC}
+      }
+
+      result = Breakfast.decode(__MODULE__, bad_params)
+
+      assert result.errors == [config: [timezone: "cast error", sleep_timeout: "cast error"]]
+    end
+  end
 
   # testmodule ExternalDecoder.User do
   #   use Breakfast

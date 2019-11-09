@@ -145,9 +145,29 @@ defmodule Breakfast do
   defp do_fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
 
+  def cast(value, %Field{caster: :default, type: {:cereal, module}}) do
+    case Breakfast.decode(module, value) do
+      %Breakfast.Yogurt{errors: [], struct: struct} ->
+        {:ok, struct}
+
+      %Breakfast.Yogurt{errors: [_ | _]} = yogurt ->
+        {:ok, yogurt}
+    end
+  end
+
   def cast(value, %Field{caster: :default, type: type}), do: Breakfast.Type.cast(type, value)
 
   def cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
+
+  def validate(value, %Field{validator: :default, type: {:cereal, module}}) do
+    case value do
+      %^module{} ->
+        []
+
+      %Breakfast.Yogurt{errors: errors} ->
+        [errors]
+    end
+  end
 
   def validate(value, %Field{validator: :default, type: type}),
     do: Breakfast.Type.validate(type, value)
@@ -177,7 +197,8 @@ defmodule Breakfast do
     Enum.each(fields, fn {name, type, opts} ->
       with false <- Keyword.has_key?(opts, :validate),
            false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(validators, type) do
+           false <- Map.has_key?(validators, type),
+           false <- match?({:cereal, _}, type) do
         raise "%CompileError{}: No validator for :#{name}"
       end
     end)
@@ -187,7 +208,8 @@ defmodule Breakfast do
     Enum.each(fields, fn {name, type, opts} ->
       with false <- Keyword.has_key?(opts, :cast),
            false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(casters, type) do
+           false <- Map.has_key?(casters, type),
+           false <- match?({:cereal, _}, type) do
         raise "%CompileError{}: No cast for :#{name}"
       end
     end)
@@ -245,6 +267,8 @@ defmodule Breakfast do
   defp type_from_spec({:map, _, []}), do: :map
   defp type_from_spec({:number, _, []}), do: :number
   defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
+
+  defp type_from_spec({:cereal, _cereal_module_alias} = type), do: type
 
   defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
     do: {:custom, {alias_, type}}
