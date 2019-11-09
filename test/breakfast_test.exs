@@ -228,82 +228,52 @@ defmodule BreakfastTest do
     end
   end
 
-  # testmodule ExternalDecoder.User do
-  #   use Breakfast
+  testmodule SuperNestedDecoder do
+    use Breakfast
 
-  #   defmodule Config do
-  #     cereal do
-  #       field(:sleep_timeout, integer())
-  #       field(:timezone, String.t())
-  #     end
-  #   end
+    defmodule A do
+      use Breakfast
 
-  #   cereal do
-  #     field(:email, String.t())
-  #     field(:config, {:external, BreakfastTest.ExternalDecoder.Config.t()})
-  #   end
+      defmodule B do
+        use Breakfast
 
-  #   test "should properly handle an externally defined decoder" do
-  #     assert User.decode(%{
-  #              "email" => "some@email.com",
-  #              "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
-  #            }) ==
-  #              {:ok,
-  #               %User{
-  #                 email: "some@email.com",
-  #                 config: %Config{
-  #                   sleep_timeout: 50_000,
-  #                   timezone: "UTC"
-  #                 }
-  #               }}
-  #   end
-  # end
+        defmodule C do
+          use Breakfast
 
-  # testmodule SuperNestedDecoder do
-  #   use Breakfast
+          cereal do
+            field(:value, number())
+          end
+        end
 
-  #   cereal Decoder do
-  #     field(:a, A.t())
+        cereal do
+          field(:c, {:cereal, C})
+        end
+      end
 
-  #     cereal A do
-  #       field(:b, B.t())
+      cereal do
+        field(:b, {:cereal, B})
+      end
+    end
 
-  #       cereal B do
-  #         field(:c, C.t())
+    cereal do
+      field(:a, {:cereal, A})
+    end
 
-  #         cereal C do
-  #           field(:value, number())
-  #         end
-  #       end
-  #     end
-  #   end
+    test "If a deeply nested decoder fails, the error should be reporting from that level" do
+      params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
+      result = Breakfast.decode(SuperNestedDecoder, params)
 
-  #   test "If a deeply nested decoder fails, the error should be reporting from that level" do
-  #     params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
-
-  #     assert match?(
-  #              {:ok, _},
-  #              SuperNestedDecoder.Decoder.decode(params)
-  #            )
-
-  #     params = put_in(params["a"]["b"]["c"]["value"], "")
-
-  #     assert SuperNestedDecoder.Decoder.decode(params) ==
-  #              {:error,
-  #               %Breakfast.DecodeError{
-  #                 field_path: [:a, :b, :c, :value],
-  #                 input: params,
-  #                 problem_value: "",
-  #                 type: :validate_error,
-  #                 message: """
-  #                 The validation check failed for the value for the field at the following path: input[a -> b -> c -> value].
-
-  #                 The value that failed the validate check was: "".
-
-  #                 Either the value for this field was invalid, or the validate function for this
-  #                 field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
-  #                 """
-  #               }}
-  #   end
-  # end
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: %{"a" => %{"b" => %{"c" => %{"value" => 1}}}},
+               struct: %BreakfastTest.SuperNestedDecoder{
+                 a: %BreakfastTest.SuperNestedDecoder.A{
+                   b: %BreakfastTest.SuperNestedDecoder.A.B{
+                     c: %BreakfastTest.SuperNestedDecoder.A.B.C{value: 1}
+                   }
+                 }
+               }
+             }
+    end
+  end
 end
