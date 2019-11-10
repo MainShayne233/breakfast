@@ -1,86 +1,73 @@
 defmodule Breakfast.Type do
-  @type quoted_module :: {:__aliases__, Keyword.t(), term()}
+  def cast(:string, term) when is_binary(term), do: {:ok, term}
+  def cast(:string, _term), do: :error
 
-  @type spec :: term()
+  def cast(:integer, term) when is_integer(term), do: {:ok, term}
 
-  @type type :: term()
-
-  @type predicate :: (value :: term() -> boolean())
-
-  @standard_types_lookup %{
-    integer: %{predicate: &__MODULE__.is_integer/1},
-    float: %{predicate: &__MODULE__.is_float/1},
-    number: %{predicate: &__MODULE__.is_number/1},
-    string: %{predicate: &__MODULE__.is_binary/1},
-    boolean: %{predicate: &__MODULE__.is_boolean/1},
-    nil: %{predicate: &__MODULE__.is_nil/1},
-    term: %{predicate: &__MODULE__.is_any/1},
-    any: %{predicate: &__MODULE__.is_any/1},
-    atom: %{predicate: &__MODULE__.is_atom/1},
-    map: %{predicate: &__MODULE__.is_map/1}
-  }
-
-  @spec infer_validator(term(), list()) ::
-          {:ok, Breakfast.quoted()} | {:error, Breakfast.quoted()}
-  def infer_validator([spec], validators) do
-    with {:ok, item_validator} <- infer_validator(spec, validators) do
-      {:ok, list_validator(item_validator)}
+  def cast(:integer, term) when is_binary(term) do
+    case Integer.parse(term) do
+      {integer, _} -> {:ok, integer}
+      _ -> :error
     end
   end
 
-  def infer_validator(spec, validators) do
-    with :error <- fetch_defined_validator(spec, validators),
-         :error <- fetch_predicate(spec) do
-      {:error, spec}
+  def cast(:integer, _term), do: :error
+
+  def cast(:float, term) when is_float(term), do: {:ok, term}
+
+  def cast(:float, term) when is_binary(term) do
+    case Float.parse(term) do
+      {float, _} -> {:ok, float}
+      _ -> :error
     end
   end
 
-  @spec list_validator(predicate()) :: Breakfast.quoted()
-  defp list_validator(item_validator) do
-    quote(do: fn value -> is_list(value) and Enum.all?(value, unquote(item_validator)) end)
+  def cast(:number, term) when is_number(term), do: {:ok, term}
+
+  def cast(:number, term) when is_binary(term) do
+    with :error <- Integer.parse(term),
+         :error <- Float.parse(term),
+         do: :error,
+         else: ({_number, _} -> :error)
   end
 
-  @spec fetch_defined_validator(spec(), validators :: list()) ::
-          {:ok, Breakfast.quoted()} | :error
-  defp fetch_defined_validator(spec, validators) do
-    Enum.find_value(validators, :error, fn [validator_spec, validator_func] ->
-      if Macro.to_string(spec) == Macro.to_string(validator_spec) do
-        {:ok, validator_func}
-      else
-        :error
+  def cast({:list, type}, term) when is_list(term) do
+    list_or_error =
+      Enum.reduce_while(term, [], fn t, acc ->
+        case cast(type, t) do
+          {:ok, t} -> {:cont, [t | acc]}
+          :error -> {:halt, :error}
+        end
+      end)
+
+    with list when is_list(list) <- list_or_error, do: {:ok, Enum.reverse(list)}
+  end
+
+  def cast({:list, _type}, _term), do: :error
+
+  def validate(:string, term) when is_binary(term), do: []
+  def validate(:string, term), do: ["expected a string, got #{inspect(term)}"]
+
+  def validate(:integer, term) when is_integer(term), do: []
+  def validate(:integer, term), do: ["expected an integer, got #{inspect(term)}"]
+
+  def validate(:float, term) when is_float(term), do: []
+  def validate(:float, term), do: ["expected a float, got #{inspect(term)}"]
+
+  def validate(:number, term) when is_number(term), do: []
+  def validate(:number, term), do: ["expected a number, got #{inspect(term)}"]
+
+  def validate({:list, type}, term) when is_list(term) do
+    Enum.find_value(term, [], fn t ->
+      case validate(type, t) do
+        [_ | _] = error ->
+          error
+
+        [] ->
+          false
       end
     end)
   end
 
-  @spec fetch_predicate(spec()) :: {:ok, predicate()} | :error
-  defp fetch_predicate(spec) do
-    with {:ok, type} <- type_from_spec(spec),
-         %{^type => %{predicate: predicate}} <- @standard_types_lookup do
-      {:ok, predicate}
-    else
-      _ ->
-        :error
-    end
-  end
-
-  @spec type_from_spec(spec()) :: {:ok, type()}
-  defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: {:ok, :string}
-  defp type_from_spec({:integer, _, []}), do: {:ok, :integer}
-  defp type_from_spec({:float, _, []}), do: {:ok, :float}
-  defp type_from_spec({:number, _, []}), do: {:ok, :number}
-  defp type_from_spec({:map, _, []}), do: {:ok, :map}
-
-  defp type_from_spec(_other), do: :error
-
-  # weirdly have to wrap these in order to allow for refs to these
-  # anonymous functions to be compiled into the module attributes
-  defdelegate is_atom(value), to: Kernel
-  defdelegate is_integer(value), to: Kernel
-  defdelegate is_float(value), to: Kernel
-  defdelegate is_number(value), to: Kernel
-  defdelegate is_binary(value), to: Kernel
-  defdelegate is_boolean(value), to: Kernel
-  defdelegate is_nil(value), to: Kernel
-  def is_any(_value), do: true
-  defdelegate is_map(value), to: Kernel
+  def validate({:list, _type}, term), do: ["expected a list, got #{inspect(term)}"]
 end

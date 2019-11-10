@@ -3,24 +3,23 @@ defmodule BreakfastTest do
   import TestHelper
   doctest Breakfast
 
-  testmodule Client do
+  testmodule Client.User do
     use Breakfast
-    alias __MODULE__.User
 
-    defdecoder User do
+    cereal do
       field(:email, String.t())
-      field(:age, integer(), cast: &Client.int_from_string/1)
+      field(:age, integer(), cast: :int_from_string)
       field(:timezone, String.t(), default: "US")
       field(:roles, [String.t()])
 
-      field(:status, String.t(),
-        parse: fn
-          %{"UserStatus" => "Pending"} -> {:ok, "Pending"}
-          %{"UserStatus" => "Approved"} -> "Approved"
-          _other -> :error
-        end
-      )
+      field(:status, String.t(), fetch: :fetch_status, validate: :validate_status)
     end
+
+    def fetch_status(params, :status), do: Map.fetch(params, "UserStatus")
+
+    def validate_status("Pending"), do: []
+    def validate_status("Approved"), do: :bad_return
+    def validate_status(_other), do: ["invalid value"]
 
     def int_from_string(value) when is_binary(value) do
       case Integer.parse(value) do
@@ -43,47 +42,23 @@ defmodule BreakfastTest do
     end
 
     test "should succeed for valid params", %{params: params} do
-      assert match?({:ok, %User{}}, User.decode(params))
+      result = Breakfast.decode(Client.User, params)
+      assert match?(%Breakfast.Yogurt{errors: []}, result)
     end
 
     test "should result in a parse error if a field is missing", %{params: params} do
       params = Map.delete(params, "age")
+      result = Breakfast.decode(Client.User, params)
 
-      assert User.decode(params) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  type: :parse_error,
-                  field_path: [:age],
-                  input: params,
-                  message: """
-                  Failed to parse field at: input[age].
-
-                  Either the input value did not have a parsable value for this field,
-                  or the parsing isn't correctly setup for this field. If the latter, check
-                  the docs on how to define custom parse functions.
-                  """
-                }}
+      assert result.errors == [age: "value not found"]
     end
 
     test "should result in a parse error if the custom parse function returns :error", %{
       params: params
     } do
       params = Map.put(params, "UserStatus", "Cancelled")
-
-      assert User.decode(params) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  type: :parse_error,
-                  field_path: [:status],
-                  input: params,
-                  message: """
-                  Failed to parse field at: input[status].
-
-                  Either the input value did not have a parsable value for this field,
-                  or the parsing isn't correctly setup for this field. If the latter, check
-                  the docs on how to define custom parse functions.
-                  """
-                }}
+      result = Breakfast.decode(Client.User, params)
+      assert result.errors == [status: "invalid value"]
     end
 
     test "should raise a runtime exception if the custom parse returns a bad value", %{
@@ -91,66 +66,19 @@ defmodule BreakfastTest do
     } do
       params = Map.put(params, "UserStatus", "Approved")
 
-      assert assert_raise(Breakfast.DecodeError, fn ->
-               User.decode(params)
-             end) ==
-               %Breakfast.DecodeError{
-                 field_path: [:status],
-                 input: params,
-                 problem_value: "Approved",
-                 type: :bad_parse_return,
-                 message: """
-                 An invalid value was returned by the parser for the field at: input[status].
-
-                 Instead of returning {:ok, term()} | :error, the parse function for this field returned \"Approved\".
-                 """
-               }
+      assert assert_raise(RuntimeError, fn ->
+               Breakfast.decode(Client.User, params)
+             end) == %RuntimeError{
+               message:
+                 "Expected status.validate (:validate_status) to return a list, got :bad_return"
+             }
     end
 
-    test "should complain about invalid value for field", %{params: params} do
+    test "a bad type should result in a cast error", %{params: params} do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
+      result = Breakfast.decode(Client.User, params)
 
-      assert User.decode(params) ==
-               {
-                 :error,
-                 %Breakfast.DecodeError{
-                   field_path: [:email],
-                   input: params,
-                   problem_value: :shayneAThotmailDOTcom,
-                   type: :validate_error,
-                   message: """
-                   The validation check failed for the value for the field at the following path: input[email].
-
-                   The value that failed the validate check was: :shayneAThotmailDOTcom.
-
-                   Either the value for this field was invalid, or the validate function for this
-                   field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
-                   """
-                 }
-               }
-    end
-
-    test "should complain about a bad cast", %{params: params} do
-      params = Map.put(params, "age", :"10")
-
-      assert User.decode(params) ==
-               {
-                 :error,
-                 %Breakfast.DecodeError{
-                   field_path: [:age],
-                   input: params,
-                   problem_value: :"10",
-                   type: :cast_error,
-                   message: """
-                   The cast step failed for the value for the field at the following path: input[age].
-
-                   The value that failed to cast was: :"10".
-
-                   Either the value for this field was invalid, or the cast function for this
-                   field isn't setup correctly. If the latter, check the docs on how to define custom cast functions.
-                   """
-                 }
-               }
+      assert result.errors == [email: "cast error"]
     end
   end
 
@@ -158,36 +86,40 @@ defmodule BreakfastTest do
     use Breakfast
 
     test "should give a helpful error if unable to infer the validator for a custom type" do
-      assert assert_raise(Breakfast.CompileError, fn ->
-               defmodule Client do
+      assert assert_raise(RuntimeError, fn ->
+               defmodule Client.Request do
                  use Breakfast
                  @type status :: :approved | :pending | :rejected
 
-                 defdecoder Request do
+                 cereal do
                    field(:statuses, Client.status())
                  end
                end
-             end)
+             end) == %RuntimeError{message: "%CompileError{}: No cast for :statuses"}
 
-      assert (defmodule Client do
+      assert (defmodule Client.Request do
                 use Breakfast
                 @type status :: :approved | :pending | :rejected
 
-                defdecoder Request do
-                  field(:statuses, [Client.status()])
-
-                  validate(Client.status(), fn value ->
-                    value in [:approved, :pending, :rejected]
-                  end)
+                cereal do
+                  field(:statuses, [Client.status()],
+                    cast: :cast_statuses,
+                    validate: :validate_statuses
+                  )
                 end
+
+                def cast_statuses(value), do: value
+
+                def validate_statuses(statuses),
+                  do: Enum.all?(statuses, &(&1 in [:approved, :pending, :rejected]))
               end)
     end
   end
 
-  testmodule DefaultParse do
+  testmodule DefaultParse.JSUser do
     use Breakfast
 
-    defdecoder JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
+    cereal fetch: &DefaultParse.JSUser.camel_key_fetch/2 do
       field(:first_name, String.t())
       field(:last_name, String.t())
     end
@@ -199,23 +131,30 @@ defmodule BreakfastTest do
     end
 
     test "should use the :default_parse function if one is defined" do
-      assert JSUser.decode(%{"firstName" => "shawn", "lastName" => "trembles"}) ==
-               {:ok,
-                %JSUser{
-                  first_name: "shawn",
-                  last_name: "trembles"
-                }}
+      params = %{"firstName" => "shawn", "lastName" => "trembles"}
+      result = Breakfast.decode(__MODULE__, params)
+
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: %{"firstName" => "shawn", "lastName" => "trembles"},
+               struct: %__MODULE__{
+                 first_name: "shawn",
+                 last_name: "trembles"
+               }
+             }
     end
   end
 
-  testmodule DefaultParseOverride do
+  testmodule DefaultParseOverride.JSUser do
     use Breakfast
 
-    defdecoder JSUser, default_parse: &DefaultParse.camel_key_fetch/2 do
+    cereal fetch: &__MODULE__.camel_key_fetch/2 do
       field(:first_name, String.t())
       field(:last_name, String.t())
-      field(:age, integer(), parse: &Map.fetch(&1, "UserAge"))
+      field(:age, integer(), fetch: :fetch_age)
     end
+
+    def fetch_age(data, :age), do: Map.fetch(data, "UserAge")
 
     def camel_key_fetch(params, key) do
       {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
@@ -223,120 +162,118 @@ defmodule BreakfastTest do
       Map.fetch(params, camel_key)
     end
 
-    test "should use the :default_parse function if one is defined" do
-      assert JSUser.decode(%{"firstName" => "shawn", "lastName" => "trembles", "UserAge" => 28}) ==
-               {:ok,
-                %JSUser{
-                  first_name: "shawn",
-                  last_name: "trembles",
-                  age: 28
-                }}
+    test "should use the field-level fetch over the default fetch" do
+      params = %{"firstName" => "shawn", "lastName" => "trembles", "UserAge" => 28}
+      result = Breakfast.decode(__MODULE__, params)
+
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: %{"UserAge" => 28, "firstName" => "shawn", "lastName" => "trembles"},
+               struct: %BreakfastTest.DefaultParseOverride.JSUser{
+                 age: 28,
+                 first_name: "shawn",
+                 last_name: "trembles"
+               }
+             }
     end
   end
 
-  testmodule NestedDecoder do
+  testmodule External do
     use Breakfast
 
-    defdecoder User do
-      field(:email, String.t())
-      field(:config, Config.t())
+    defmodule Config do
+      use Breakfast
 
-      defdecoder Config do
+      cereal do
         field(:sleep_timeout, integer())
         field(:timezone, String.t())
       end
     end
 
-    test "should properly handle a nested decoder" do
-      assert User.decode(%{
-               "email" => "some@email.com",
-               "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
-             }) ==
-               {:ok,
-                %User{
-                  email: "some@email.com",
-                  config: %User.Config{
-                    sleep_timeout: 50_000,
-                    timezone: "UTC"
-                  }
-                }}
-    end
-  end
-
-  testmodule ExternalDecoder do
-    use Breakfast
-
-    defdecoder User do
+    cereal do
       field(:email, String.t())
-      field(:config, {:external, BreakfastTest.ExternalDecoder.Config.t()})
+      field(:config, {:cereal, Config})
     end
 
-    defdecoder Config do
-      field(:sleep_timeout, integer())
-      field(:timezone, String.t())
+    test "should properly handle an externally defined cereal" do
+      params = %{
+        "email" => "some@email.com",
+        "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
+      }
+
+      result = Breakfast.decode(__MODULE__, params)
+
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: params,
+               struct: %BreakfastTest.External{
+                 config: %BreakfastTest.External.Config{
+                   sleep_timeout: 50000,
+                   timezone: "UTC"
+                 },
+                 email: "some@email.com"
+               }
+             }
     end
 
-    test "should properly handle an externally defined decoder" do
-      assert User.decode(%{
-               "email" => "some@email.com",
-               "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
-             }) ==
-               {:ok,
-                %User{
-                  email: "some@email.com",
-                  config: %Config{
-                    sleep_timeout: 50_000,
-                    timezone: "UTC"
-                  }
-                }}
+    test "nested decoding errors should bubble up to top level yogurt" do
+      bad_params = %{
+        "email" => "some@email.com",
+        "config" => %{"sleep_timeout" => [], "timezone" => :UTC}
+      }
+
+      result = Breakfast.decode(__MODULE__, bad_params)
+
+      assert result.errors == [config: [timezone: "cast error", sleep_timeout: "cast error"]]
     end
   end
 
   testmodule SuperNestedDecoder do
     use Breakfast
 
-    defdecoder Decoder do
-      field(:a, A.t())
+    defmodule A do
+      use Breakfast
 
-      defdecoder A do
-        field(:b, B.t())
+      defmodule B do
+        use Breakfast
 
-        defdecoder B do
-          field(:c, C.t())
+        defmodule C do
+          use Breakfast
 
-          defdecoder C do
+          cereal do
             field(:value, number())
           end
         end
+
+        cereal do
+          field(:c, {:cereal, C})
+        end
       end
+
+      cereal do
+        field(:b, {:cereal, B})
+      end
+    end
+
+    cereal do
+      field(:a, {:cereal, A})
     end
 
     test "If a deeply nested decoder fails, the error should be reporting from that level" do
       params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
+      result = Breakfast.decode(SuperNestedDecoder, params)
 
-      assert match?(
-               {:ok, _},
-               SuperNestedDecoder.Decoder.decode(params)
-             )
-
-      params = put_in(params["a"]["b"]["c"]["value"], "")
-
-      assert SuperNestedDecoder.Decoder.decode(params) ==
-               {:error,
-                %Breakfast.DecodeError{
-                  field_path: [:a, :b, :c, :value],
-                  input: params,
-                  problem_value: "",
-                  type: :validate_error,
-                  message: """
-                  The validation check failed for the value for the field at the following path: input[a -> b -> c -> value].
-
-                  The value that failed the validate check was: "".
-
-                  Either the value for this field was invalid, or the validate function for this
-                  field isn't setup correctly. If the latter, check the docs on how to define custom validate functions.
-                  """
-                }}
+      assert result == %Breakfast.Yogurt{
+               errors: [],
+               params: %{"a" => %{"b" => %{"c" => %{"value" => 1}}}},
+               struct: %BreakfastTest.SuperNestedDecoder{
+                 a: %BreakfastTest.SuperNestedDecoder.A{
+                   b: %BreakfastTest.SuperNestedDecoder.A.B{
+                     c: %BreakfastTest.SuperNestedDecoder.A.B.C{value: 1}
+                   }
+                 }
+               }
+             }
     end
   end
 end

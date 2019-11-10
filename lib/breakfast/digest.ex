@@ -48,7 +48,7 @@ defmodule Breakfast.Digest do
 
     decoders =
       sections
-      |> Map.get(:defdecoder, [])
+      |> Map.get(:cereal, [])
       |> Enum.map(fn
         [name, [do: block]] -> digest_decoder(name, block, [])
         [name, options, [do: block]] -> digest_decoder(name, block, options)
@@ -85,6 +85,19 @@ defmodule Breakfast.Digest do
       |> digest_parse(field_name, options, decoder_options)
       |> digest_cast(options)
       |> digest_validate(field_name, type, options, validators)
+      |> Keyword.put(:options, options)
+
+    struct!(Field, params)
+  end
+
+  def digest_field_(name, type, options) do
+    params =
+      [name: name, type: type]
+      |> digest_defined_decoder([])
+      |> digest_default(options)
+      |> digest_parse(name, options, [])
+      |> digest_cast(options)
+      |> digest_validate(name, type, options, [])
       |> Keyword.put(:options, options)
 
     struct!(Field, params)

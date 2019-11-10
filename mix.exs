@@ -5,7 +5,7 @@ defmodule Breakfast.MixProject do
     [
       app: :breakfast,
       version: "0.1.0",
-      elixir: "~> 1.10-dev",
+      elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       dialyzer: dialyzer()

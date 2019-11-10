@@ -4,10 +4,10 @@ defmodule Breakfast.CompileError do
   """
 
   @type t :: %__MODULE__{
-    type: atom(),
-    value: term(),
-    message: String.t()
-  }
+          type: atom(),
+          value: term(),
+          message: String.t()
+        }
 
   defexception [:type, :value, :message]
 
@@ -19,7 +19,7 @@ defmodule Breakfast.CompileError do
       message: """
 
 
-      Failed to define the defdecoder for #{Macro.to_string(module_name)}.
+      Failed to define the cereal for #{Macro.to_string(module_name)}.
 
       Underyling error:
 
@@ -39,7 +39,11 @@ defmodule Breakfast.CompileError do
       message: validator_inference_message(field_name, field_type, bad_type)
     }
 
-  @spec validator_inference_message(field_name :: atom(), field_type :: Breakfast.quoted(), bad_type :: Breakfast.quoted()) :: String.t()
+  @spec validator_inference_message(
+          field_name :: atom(),
+          field_type :: Breakfast.quoted(),
+          bad_type :: Breakfast.quoted()
+        ) :: String.t()
   defp validator_inference_message(field_name, field_type, field_type),
     do: """
     Cannot infer validator for field: #{field_name}. It is unclear how to validate the field's type: #{
@@ -48,13 +52,13 @@ defmodule Breakfast.CompileError do
 
     You can define a validate function inline with the field, like:
 
-    defdecoder ... do
+    cereal ... do
       field(#{field_name}, #{Macro.to_string(field_type)}, validate: fn value -> ... end)
     end
 
     Or, you can define the validate function seperatly:
 
-    defdecoder ... do
+    cereal ... do
       field(#{field_name}, #{Macro.to_string(field_type)})
 
       validate(#{Macro.to_string(field_type)}, fn value -> ... end)
@@ -71,7 +75,7 @@ defmodule Breakfast.CompileError do
 
     You can add a validate function to define the way to validate this type like so:
 
-    defdecoder ... do
+    cereal ... do
       field(#{field_name}, #{Macro.to_string(field_type)})
 
       validate(#{Macro.to_string(bad_type)}, fn value ->
