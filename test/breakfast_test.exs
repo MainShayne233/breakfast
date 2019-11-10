@@ -85,34 +85,15 @@ defmodule BreakfastTest do
   testmodule InferValidator do
     use Breakfast
 
+    @tag :only
     test "should give a helpful error if unable to infer the validator for a custom type" do
-      assert assert_raise(RuntimeError, fn ->
-               defmodule Client.Request do
-                 use Breakfast
-                 @type status :: :approved | :pending | :rejected
+      defmodule Client.Request do
+        use Breakfast
 
-                 cereal do
-                   field(:statuses, Client.status())
-                 end
-               end
-             end) == %RuntimeError{message: "%CompileError{}: No cast for :statuses"}
-
-      assert (defmodule Client.Request do
-                use Breakfast
-                @type status :: :approved | :pending | :rejected
-
-                cereal do
-                  field(:statuses, [Client.status()],
-                    cast: :cast_statuses,
-                    validate: :validate_statuses
-                  )
-                end
-
-                def cast_statuses(value), do: value
-
-                def validate_statuses(statuses),
-                  do: Enum.all?(statuses, &(&1 in [:approved, :pending, :rejected]))
-              end)
+        cereal do
+          field(:statuses, Breakfast.TestDefinitions.status())
+        end
+      end
     end
   end
 

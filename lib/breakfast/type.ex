@@ -1,6 +1,49 @@
 defmodule Breakfast.Type do
-  def cast(:string, term) when is_binary(term), do: {:ok, term}
-  def cast(:string, _term), do: :error
+  alias TypeReader.TerminalType
+
+  @understood_primative_types [
+    :binary,
+    :integer,
+    :float,
+    :number,
+    :atom
+  ]
+
+  def derive_from_spec({:cereal, _} = cereal), do: cereal
+
+  def derive_from_spec(spec) do
+    with {:ok, type} <- TypeReader.type_from_quoted(spec),
+         {:ok, determined_type} <- determine_type(type) do
+      determined_type
+    else
+      _ ->
+        raise "Failed to derive type from spec: #{inspect(spec)}"
+    end
+  end
+
+  defp determine_type(%TerminalType{name: :union, bindings: [elem_types: elem_types]}) do
+    with {:ok, determined_elem_types} <- maybe_map(elem_types, &determine_type/1) do
+      {:ok, {:union, determined_elem_types}}
+    end
+  end
+
+  defp determine_type(%TerminalType{name: :list, bindings: [type: elem_type]}) do
+    with {:ok, determined_elem_type} <- determine_type(elem_type) do
+      {:ok, {:list, determined_elem_type}}
+    end
+  end
+
+  defp determine_type(%TerminalType{name: :literal, bindings: [value: literal_value]}) do
+    {:ok, {:literal, literal_value}}
+  end
+
+  defp determine_type(%TerminalType{name: type_name, bindings: []})
+       when type_name in @understood_primative_types do
+    {:ok, type_name}
+  end
+
+  def cast(:binary, term) when is_binary(term), do: {:ok, term}
+  def cast(:binary, _term), do: :error
 
   def cast(:integer, term) when is_integer(term), do: {:ok, term}
 
@@ -45,8 +88,8 @@ defmodule Breakfast.Type do
 
   def cast({:list, _type}, _term), do: :error
 
-  def validate(:string, term) when is_binary(term), do: []
-  def validate(:string, term), do: ["expected a string, got #{inspect(term)}"]
+  def validate(:binary, term) when is_binary(term), do: []
+  def validate(:binary, term), do: ["expected a string, got #{inspect(term)}"]
 
   def validate(:integer, term) when is_integer(term), do: []
   def validate(:integer, term), do: ["expected an integer, got #{inspect(term)}"]
@@ -70,4 +113,17 @@ defmodule Breakfast.Type do
   end
 
   def validate({:list, _type}, term), do: ["expected a list, got #{inspect(term)}"]
+
+  defp maybe_map(enum, map) do
+    Enum.reduce_while(enum, [], fn value, acc ->
+      case map.(value) do
+        {:ok, mapped_value} -> {:cont, [mapped_value | acc]}
+        :error -> {:halt, :error}
+      end
+    end)
+    |> case do
+      acc when is_list(acc) -> {:ok, Enum.reverse(acc)}
+      :error -> :error
+    end
+  end
 end
