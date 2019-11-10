@@ -43,9 +43,6 @@ defmodule Breakfast do
       custom_fetchers = Enum.into(@breakfast_fetchers, %{})
       custom_default_values = Enum.into(@breakfast_default_values, %{})
 
-      #      unless unquote(cereal_validator),
-      #        do: Breakfast.check_validators(raw_fields, custom_validators)
-
       @breakfast_fields Enum.map(raw_fields, fn {name, type, _opts} = raw_field ->
                           %Field{mod: __MODULE__, name: name, type: type}
                           |> Breakfast.set_fetcher(custom_fetchers, unquote(cereal_fetcher))
@@ -176,17 +173,6 @@ defmodule Breakfast do
 
   defp apply_fn(_mod, {mod, fun}, args) when is_atom(mod) and is_atom(fun) and is_list(args),
     do: apply(mod, fun, args)
-
-  def check_validators(fields, validators) do
-    Enum.each(fields, fn {name, type, opts} ->
-      with false <- Keyword.has_key?(opts, :validate),
-           #           false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(validators, type),
-           false <- match?({:cereal, _}, type) do
-        raise "%CompileError{}: No validator for :#{name}"
-      end
-    end)
-  end
 
   defmacro field(name, spec, opts \\ []) do
     type = Type.derive_from_spec(spec)
