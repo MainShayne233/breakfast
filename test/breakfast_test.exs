@@ -263,12 +263,16 @@ defmodule BreakfastTest do
 
     setup do
       %{
-        params: %{"rgb_color" => "blue"}
+        params: %{
+          "rgb_color" => "blue",
+          "tag_groupings" => [["guest"], ["user", "admin"]]
+        }
       }
     end
 
     cereal do
       field :rgb_color, Breakfast.TestDefinitions.rgb_color(), cast: :string_to_existing_atom
+      field :tag_groupings, [[String.t()]]
     end
 
     def string_to_existing_atom(binary) do
@@ -282,17 +286,26 @@ defmodule BreakfastTest do
       result = Breakfast.decode(__MODULE__, params)
       assert result.errors == []
 
-      params = %{"rgb_color" => "green"}
+      params = %{params | "rgb_color" => "green"}
       result = Breakfast.decode(__MODULE__, params)
       assert result.errors == []
 
-      params = %{"rgb_color" => "cyan"}
+      params = %{params | "rgb_color" => "cyan"}
       result = Breakfast.decode(__MODULE__, params)
 
       assert result.errors == [
                rgb_color:
                  "expected one of [literal: :red, literal: :green, literal: :blue], got: :cyan"
              ]
+    end
+
+    test "should handle multi-dimensional lists", %{params: params} do
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "tag_groupings" => ["user", "admin"]}
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == [tag_groupings: "cast error"]
     end
   end
 end
