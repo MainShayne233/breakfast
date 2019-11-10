@@ -70,7 +70,7 @@ defmodule BreakfastTest do
                Breakfast.decode(Client.User, params)
              end) == %RuntimeError{
                message:
-                 "Expected status.validate (:validate_status) to return a list, got :bad_return"
+                 "Expected status.validate (:validate_status) to return a list, got: :bad_return"
              }
     end
 
@@ -78,7 +78,7 @@ defmodule BreakfastTest do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
       result = Breakfast.decode(Client.User, params)
 
-      assert result.errors == [email: "expected a string, got :shayneAThotmailDOTcom"]
+      assert result.errors == [email: "expected a binary, got: :shayneAThotmailDOTcom"]
     end
   end
 
@@ -207,8 +207,8 @@ defmodule BreakfastTest do
 
       assert result.errors == [
                config: [
-                 timezone: "expected a string, got :UTC",
-                 sleep_timeout: "expected an integer, got []"
+                 timezone: "expected a binary, got: :UTC",
+                 sleep_timeout: "expected a integer, got: []"
                ]
              ]
     end
@@ -316,7 +316,7 @@ defmodule BreakfastTest do
       params = %{params | "tag_groupings" => ["user", "admin"]}
 
       result = Breakfast.decode(__MODULE__, params)
-      assert result.errors == [tag_groupings: "expected a list, got \"user\""]
+      assert result.errors == [tag_groupings: "expected a list, got: \"user\""]
     end
 
     test "should support tuples", %{params: params} do
@@ -326,6 +326,22 @@ defmodule BreakfastTest do
       params = %{params | "ratio" => [7, 5.0]}
       result = Breakfast.decode(__MODULE__, params)
       assert result.errors == [ratio: "expected {:integer, :integer}, got: {7, 5.0}"]
+    end
+  end
+
+  testmodule TypeError do
+    use Breakfast
+
+    test "should raise error when type cannot be determined" do
+      assert assert_raise(RuntimeError, fn ->
+        defmodule WillRaise do
+          use Breakfast
+
+          cereal do
+            field :crazy, DoesNotExist.t()
+          end
+        end
+      end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
     end
   end
 end

@@ -1,19 +1,6 @@
 defmodule Breakfast do
   alias Breakfast.{Type, Yogurt}
 
-  @type quoted :: term()
-
-  # @known_types [
-  #   :integer,
-  #   :number,
-  #   :float,
-  #   :string,
-  #   {:list, :integer},
-  #   {:list, :number},
-  #   {:list, :float},
-  #   {:list, :string}
-  # ]
-
   defmodule Field do
     defstruct [:mod, :name, :type, :fetcher, :caster, :validator, :default]
   end
@@ -55,8 +42,6 @@ defmodule Breakfast do
       custom_casters = Enum.into(@breakfast_casters, %{})
       custom_fetchers = Enum.into(@breakfast_fetchers, %{})
       custom_default_values = Enum.into(@breakfast_default_values, %{})
-
-      #      unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, custom_casters)
 
       #      unless unquote(cereal_validator),
       #        do: Breakfast.check_validators(raw_fields, custom_validators)
@@ -203,17 +188,6 @@ defmodule Breakfast do
     end)
   end
 
-  def check_casters(fields, casters) do
-    Enum.each(fields, fn {name, type, opts} ->
-      with false <- Keyword.has_key?(opts, :cast),
-           #           false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(casters, type),
-           false <- match?({:cereal, _}, type) do
-        raise "%CompileError{}: No cast for :#{name}"
-      end
-    end)
-  end
-
   defmacro field(name, spec, opts \\ []) do
     type = Type.derive_from_spec(spec)
 
@@ -260,33 +234,6 @@ defmodule Breakfast do
     end
   end
 
-  # defp type_from_spec(spec) do
-  #   case TypeReader.type_from_quoted(spec) do
-  #     {:ok, %TypeReader.TerminalType{name: type, bindings: []}} ->
-  #       type
-  #       {:ok, %TypeReader.TerminalType{name: :list, bindings: [
-  #                                         type: %TypeReader.TerminalType{name: }
-  #                                       ]}} ->
-  #     :error ->
-  #       IO.inspect(spec, label: "Fail")
-  #       raise "AH"
-  #   end
-  # end
-
-  # defp type_from_spec([spec]), do: {:list, type_from_spec(spec)}
-  # defp type_from_spec({:float, _, []}), do: :float
-  # defp type_from_spec({:integer, _, []}), do: :integer
-  # defp type_from_spec({:map, _, []}), do: :map
-  # defp type_from_spec({:number, _, []}), do: :number
-  # defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
-
-  # defp type_from_spec({:cereal, _cereal_module_alias} = type), do: type
-
-  # defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
-  #   do: {:custom, {alias_, type}}
-
-  # defp type_from_spec({type, _, _}), do: {:custom, type}
-
   @spec decode(mod :: module(), params :: term()) :: %Yogurt{}
   def decode(mod, params) do
     Enum.reduce(
@@ -324,7 +271,7 @@ defmodule Breakfast do
                   }"
 
           {:validate, retval} ->
-            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got #{
+            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got: #{
                     inspect(retval)
                   }"
         end

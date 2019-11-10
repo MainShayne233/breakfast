@@ -1,13 +1,15 @@
 defmodule Breakfast.Type do
   alias TypeReader.TerminalType
 
-  @understood_primative_types [
-    :binary,
-    :integer,
-    :float,
-    :number,
-    :atom
-  ]
+  @understood_primative_type_predicate_mappings %{
+    binary: :is_binary,
+    integer: :is_integer,
+    float: :is_float,
+    number: :is_number,
+    atom: :is_atom
+  }
+
+  @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings)
 
   def derive_from_spec({:cereal, _} = cereal), do: cereal
 
@@ -17,7 +19,7 @@ defmodule Breakfast.Type do
       determined_type
     else
       _ ->
-        raise "Failed to derive type from spec: #{inspect(spec)}"
+        raise "Failed to derive type from spec: #{Macro.to_string(spec)}"
     end
   end
 
@@ -72,18 +74,6 @@ defmodule Breakfast.Type do
     end
   end
 
-  def validate(:binary, term) when is_binary(term), do: []
-  def validate(:binary, term), do: ["expected a string, got #{inspect(term)}"]
-
-  def validate(:integer, term) when is_integer(term), do: []
-  def validate(:integer, term), do: ["expected an integer, got #{inspect(term)}"]
-
-  def validate(:float, term) when is_float(term), do: []
-  def validate(:float, term), do: ["expected a float, got #{inspect(term)}"]
-
-  def validate(:number, term) when is_number(term), do: []
-  def validate(:number, term), do: ["expected a number, got #{inspect(term)}"]
-
   def validate({:list, type}, term) when is_list(term) do
     Enum.find_value(term, [], fn t ->
       case validate(type, t) do
@@ -96,7 +86,17 @@ defmodule Breakfast.Type do
     end)
   end
 
-  def validate({:list, _type}, term), do: ["expected a list, got #{inspect(term)}"]
+  def validate({:list, _type}, term), do: ["expected a list, got: #{inspect(term)}"]
+
+  for {type, predicate} <- @understood_primative_type_predicate_mappings do
+    def validate(unquote(type), term) do
+      if apply(Kernel, unquote(predicate), [term]) do
+        []
+      else
+        ["expected a #{unquote(type)}, got: #{inspect(term)}"]
+      end
+    end
+  end
 
   defp maybe_map(enum, map) do
     Enum.reduce_while(enum, [], fn value, acc ->
