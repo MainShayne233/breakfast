@@ -1,3 +1,7 @@
+##
+# this is code used by tests to run certain assertions. it is being compiled
+# in lib versus within a test module due to the way Elixir throws out doc/type information
+# w/ test modules
 if Mix.env() == :test do
   defmodule Breakfast.TestDefinitions do
     @type status :: :approved | :pending | :rejected
