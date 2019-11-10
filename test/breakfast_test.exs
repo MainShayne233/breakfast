@@ -265,7 +265,8 @@ defmodule BreakfastTest do
       %{
         params: %{
           "rgb_color" => "blue",
-          "tag_groupings" => [["guest"], ["user", "admin"]]
+          "tag_groupings" => [["guest"], ["user", "admin"]],
+          "ratio" => [1, 2]
         }
       }
     end
@@ -273,7 +274,11 @@ defmodule BreakfastTest do
     cereal do
       field :rgb_color, Breakfast.TestDefinitions.rgb_color(), cast: :string_to_existing_atom
       field :tag_groupings, [[String.t()]]
+      field :ratio, {integer(), integer()}, cast: :pair_from_list
     end
+
+    def pair_from_list([lhs, rhs]), do: {:ok, {lhs, rhs}}
+    def pair_from_list(_), do: :error
 
     def string_to_existing_atom(binary) do
       {:ok, String.to_existing_atom(binary)}
@@ -304,8 +309,18 @@ defmodule BreakfastTest do
       assert result.errors == []
 
       params = %{params | "tag_groupings" => ["user", "admin"]}
+
       result = Breakfast.decode(__MODULE__, params)
       assert result.errors == [tag_groupings: "cast error"]
+    end
+
+    test "should support tuples", %{params: params} do
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "ratio" => [7, 5.0]}
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == [ratio: "expected {:integer, :integer}, got: {7, 5.0}"]
     end
   end
 end

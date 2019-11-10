@@ -21,9 +21,10 @@ defmodule Breakfast.Type do
     end
   end
 
-  defp determine_type(%TerminalType{name: :union, bindings: [elem_types: elem_types]}) do
+  defp determine_type(%TerminalType{name: type, bindings: [elem_types: elem_types]})
+       when type in [:union, :tuple] do
     with {:ok, determined_elem_types} <- maybe_map(elem_types, &determine_type/1) do
-      {:ok, {:union, determined_elem_types}}
+      {:ok, {type, determined_elem_types}}
     end
   end
 
@@ -87,6 +88,19 @@ defmodule Breakfast.Type do
   end
 
   def cast({:list, _type}, _term), do: :error
+
+  def validate({:tuple, union_types}, term) do
+    with true <- is_tuple(term),
+         term_as_list = Tuple.to_list(term),
+         true <- length(union_types) == length(term_as_list),
+         values_and_types = Enum.zip(term_as_list, union_types),
+         true <- Enum.all?(values_and_types, fn {value, type} -> validate(type, value) == [] end) do
+      []
+    else
+      false ->
+        ["expected #{inspect(List.to_tuple(union_types))}, got: #{inspect(term)}"]
+    end
+  end
 
   def validate({:union, union_types}, term) do
     if Enum.any?(union_types, &(validate(&1, term) == [])) do
