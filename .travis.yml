@@ -1,0 +1,39 @@
+language: elixir
+
+sudo: false
+
+elixir: 1.9.4
+otp_release: 22.0
+
+stages:
+  - check warnings
+  - check formatted
+  - test
+  - type check
+
+env:
+  global:
+    - MIX_ENV=test
+
+cache:
+  directories:
+    - deps
+    - priv/plts
+
+jobs:
+  include:
+    - stage: check warnings
+      script: mix compile --all-warnings --warnings-as-errors
+      before_install: skip
+
+    - stage: check formatted
+      script: mix format --check-formatted
+      before_install: skip
+
+    - stage: test
+      script:
+        - mix coveralls.travis
+
+    - stage: type check
+      script:
+        - mix dialyzer --format dialyxir

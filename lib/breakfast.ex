@@ -1,5 +1,4 @@
 defmodule Breakfast do
-  alias Breakfast.CompileError
   alias Breakfast.Yogurt
 
   @type quoted :: term()
