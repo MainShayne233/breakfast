@@ -88,6 +88,22 @@ defmodule Breakfast.Type do
 
   def cast({:list, _type}, _term), do: :error
 
+  def validate({:union, union_types}, term) do
+    if Enum.any?(union_types, &(validate(&1, term) == [])) do
+      []
+    else
+      ["expected one of #{inspect(union_types)}, got: #{inspect(term)}"]
+    end
+  end
+
+  def validate({:literal, literal_value}, term) do
+    if literal_value == term do
+      []
+    else
+      ["expected #{literal_value}, got: #{inspect(term)}"]
+    end
+  end
+
   def validate(:binary, term) when is_binary(term), do: []
   def validate(:binary, term), do: ["expected a string, got #{inspect(term)}"]
 
