@@ -154,7 +154,7 @@ defmodule Breakfast do
     end
   end
 
-  def cast(value, %Field{caster: :default, type: type}), do: Breakfast.Type.cast(type, value)
+  def cast(value, %Field{caster: :default}), do: {:ok, value}
 
   def cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
 

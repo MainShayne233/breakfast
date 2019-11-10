@@ -78,7 +78,7 @@ defmodule BreakfastTest do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
       result = Breakfast.decode(Client.User, params)
 
-      assert result.errors == [email: "cast error"]
+      assert result.errors == [email: "expected a string, got :shayneAThotmailDOTcom"]
     end
   end
 
@@ -205,7 +205,12 @@ defmodule BreakfastTest do
 
       result = Breakfast.decode(__MODULE__, bad_params)
 
-      assert result.errors == [config: [timezone: "cast error", sleep_timeout: "cast error"]]
+      assert result.errors == [
+               config: [
+                 timezone: "expected a string, got :UTC",
+                 sleep_timeout: "expected an integer, got []"
+               ]
+             ]
     end
   end
 
@@ -311,7 +316,7 @@ defmodule BreakfastTest do
       params = %{params | "tag_groupings" => ["user", "admin"]}
 
       result = Breakfast.decode(__MODULE__, params)
-      assert result.errors == [tag_groupings: "cast error"]
+      assert result.errors == [tag_groupings: "expected a list, got \"user\""]
     end
 
     test "should support tuples", %{params: params} do

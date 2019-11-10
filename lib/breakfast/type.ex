@@ -43,52 +43,6 @@ defmodule Breakfast.Type do
     {:ok, type_name}
   end
 
-  def cast(:binary, term) when is_binary(term), do: {:ok, term}
-  def cast(:binary, _term), do: :error
-
-  def cast(:integer, term) when is_integer(term), do: {:ok, term}
-
-  def cast(:integer, term) when is_binary(term) do
-    case Integer.parse(term) do
-      {integer, _} -> {:ok, integer}
-      _ -> :error
-    end
-  end
-
-  def cast(:integer, _term), do: :error
-
-  def cast(:float, term) when is_float(term), do: {:ok, term}
-
-  def cast(:float, term) when is_binary(term) do
-    case Float.parse(term) do
-      {float, _} -> {:ok, float}
-      _ -> :error
-    end
-  end
-
-  def cast(:number, term) when is_number(term), do: {:ok, term}
-
-  def cast(:number, term) when is_binary(term) do
-    with :error <- Integer.parse(term),
-         :error <- Float.parse(term),
-         do: :error,
-         else: ({_number, _} -> :error)
-  end
-
-  def cast({:list, type}, term) when is_list(term) do
-    list_or_error =
-      Enum.reduce_while(term, [], fn t, acc ->
-        case cast(type, t) do
-          {:ok, t} -> {:cont, [t | acc]}
-          :error -> {:halt, :error}
-        end
-      end)
-
-    with list when is_list(list) <- list_or_error, do: {:ok, Enum.reverse(list)}
-  end
-
-  def cast({:list, _type}, _term), do: :error
-
   def validate({:tuple, union_types}, term) do
     with true <- is_tuple(term),
          term_as_list = Tuple.to_list(term),
