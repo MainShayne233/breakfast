@@ -85,7 +85,6 @@ defmodule BreakfastTest do
   testmodule InferValidator do
     use Breakfast
 
-    @tag :only
     test "should give a helpful error if unable to infer the validator for a custom type" do
       defmodule Client.Request do
         use Breakfast
