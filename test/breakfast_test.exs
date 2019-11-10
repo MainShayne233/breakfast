@@ -334,14 +334,14 @@ defmodule BreakfastTest do
 
     test "should raise error when type cannot be determined" do
       assert assert_raise(RuntimeError, fn ->
-        defmodule WillRaise do
-          use Breakfast
+               defmodule WillRaise do
+                 use Breakfast
 
-          cereal do
-            field :crazy, DoesNotExist.t()
-          end
-        end
-      end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
+                 cereal do
+                   field :crazy, DoesNotExist.t()
+                 end
+               end
+             end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
     end
   end
 end
