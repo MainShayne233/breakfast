@@ -70,7 +70,7 @@ defmodule BreakfastTest do
                Breakfast.decode(Client.User, params)
              end) == %RuntimeError{
                message:
-                 "Expected status.validate (:validate_status) to return a list, got :bad_return"
+                 "Expected status.validate (:validate_status) to return a list, got: :bad_return"
              }
     end
 
@@ -78,7 +78,7 @@ defmodule BreakfastTest do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
       result = Breakfast.decode(Client.User, params)
 
-      assert result.errors == [email: "cast error"]
+      assert result.errors == [email: "expected a binary, got: :shayneAThotmailDOTcom"]
     end
   end
 
@@ -86,33 +86,13 @@ defmodule BreakfastTest do
     use Breakfast
 
     test "should give a helpful error if unable to infer the validator for a custom type" do
-      assert assert_raise(RuntimeError, fn ->
-               defmodule Client.Request do
-                 use Breakfast
-                 @type status :: :approved | :pending | :rejected
+      defmodule Client.Request do
+        use Breakfast
 
-                 cereal do
-                   field(:statuses, Client.status())
-                 end
-               end
-             end) == %RuntimeError{message: "%CompileError{}: No cast for :statuses"}
-
-      assert (defmodule Client.Request do
-                use Breakfast
-                @type status :: :approved | :pending | :rejected
-
-                cereal do
-                  field(:statuses, [Client.status()],
-                    cast: :cast_statuses,
-                    validate: :validate_statuses
-                  )
-                end
-
-                def cast_statuses(value), do: value
-
-                def validate_statuses(statuses),
-                  do: Enum.all?(statuses, &(&1 in [:approved, :pending, :rejected]))
-              end)
+        cereal do
+          field(:statuses, Breakfast.TestDefinitions.status())
+        end
+      end
     end
   end
 
@@ -224,7 +204,12 @@ defmodule BreakfastTest do
 
       result = Breakfast.decode(__MODULE__, bad_params)
 
-      assert result.errors == [config: [timezone: "cast error", sleep_timeout: "cast error"]]
+      assert result.errors == [
+               config: [
+                 timezone: "expected a binary, got: :UTC",
+                 sleep_timeout: "expected a integer, got: []"
+               ]
+             ]
     end
   end
 
@@ -274,6 +259,88 @@ defmodule BreakfastTest do
                  }
                }
              }
+    end
+  end
+
+  testmodule ComplexTypes do
+    use Breakfast
+
+    setup do
+      %{
+        params: %{
+          "rgb_color" => "blue",
+          "tag_groupings" => [["guest"], ["user", "admin"]],
+          "ratio" => [1, 2]
+        }
+      }
+    end
+
+    cereal do
+      field :rgb_color, Breakfast.TestDefinitions.rgb_color(), cast: :string_to_existing_atom
+      field :tag_groupings, [[String.t()]]
+      field :ratio, {integer(), integer()}, cast: :pair_from_list
+    end
+
+    def pair_from_list([lhs, rhs]), do: {:ok, {lhs, rhs}}
+    def pair_from_list(_), do: :error
+
+    def string_to_existing_atom(binary) do
+      {:ok, String.to_existing_atom(binary)}
+    rescue
+      _ in ArgumentError ->
+        :error
+    end
+
+    test "should handle union types", %{params: params} do
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "rgb_color" => "green"}
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "rgb_color" => "cyan"}
+      result = Breakfast.decode(__MODULE__, params)
+
+      assert result.errors == [
+               rgb_color:
+                 "expected one of [literal: :red, literal: :green, literal: :blue], got: :cyan"
+             ]
+    end
+
+    test "should handle multi-dimensional lists", %{params: params} do
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "tag_groupings" => ["user", "admin"]}
+
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == [tag_groupings: "expected a list, got: \"user\""]
+    end
+
+    test "should support tuples", %{params: params} do
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == []
+
+      params = %{params | "ratio" => [7, 5.0]}
+      result = Breakfast.decode(__MODULE__, params)
+      assert result.errors == [ratio: "expected {:integer, :integer}, got: {7, 5.0}"]
+    end
+  end
+
+  testmodule TypeError do
+    use Breakfast
+
+    test "should raise error when type cannot be determined" do
+      assert assert_raise(RuntimeError, fn ->
+               defmodule WillRaise do
+                 use Breakfast
+
+                 cereal do
+                   field :crazy, DoesNotExist.t()
+                 end
+               end
+             end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
     end
   end
 end

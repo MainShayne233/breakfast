@@ -1,18 +1,5 @@
 defmodule Breakfast do
-  alias Breakfast.Yogurt
-
-  @type quoted :: term()
-
-  @known_types [
-    :integer,
-    :number,
-    :float,
-    :string,
-    {:list, :integer},
-    {:list, :number},
-    {:list, :float},
-    {:list, :string}
-  ]
+  alias Breakfast.{Type, Yogurt}
 
   defmodule Field do
     defstruct [:mod, :name, :type, :fetcher, :caster, :validator, :default]
@@ -55,11 +42,6 @@ defmodule Breakfast do
       custom_casters = Enum.into(@breakfast_casters, %{})
       custom_fetchers = Enum.into(@breakfast_fetchers, %{})
       custom_default_values = Enum.into(@breakfast_default_values, %{})
-
-      unless unquote(cereal_caster), do: Breakfast.check_casters(raw_fields, custom_casters)
-
-      unless unquote(cereal_validator),
-        do: Breakfast.check_validators(raw_fields, custom_validators)
 
       @breakfast_fields Enum.map(raw_fields, fn {name, type, _opts} = raw_field ->
                           %Field{mod: __MODULE__, name: name, type: type}
@@ -154,7 +136,7 @@ defmodule Breakfast do
     end
   end
 
-  def cast(value, %Field{caster: :default, type: type}), do: Breakfast.Type.cast(type, value)
+  def cast(value, %Field{caster: :default}), do: {:ok, value}
 
   def cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
 
@@ -192,30 +174,8 @@ defmodule Breakfast do
   defp apply_fn(_mod, {mod, fun}, args) when is_atom(mod) and is_atom(fun) and is_list(args),
     do: apply(mod, fun, args)
 
-  def check_validators(fields, validators) do
-    Enum.each(fields, fn {name, type, opts} ->
-      with false <- Keyword.has_key?(opts, :validate),
-           false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(validators, type),
-           false <- match?({:cereal, _}, type) do
-        raise "%CompileError{}: No validator for :#{name}"
-      end
-    end)
-  end
-
-  def check_casters(fields, casters) do
-    Enum.each(fields, fn {name, type, opts} ->
-      with false <- Keyword.has_key?(opts, :cast),
-           false <- Enum.member?(@known_types, type),
-           false <- Map.has_key?(casters, type),
-           false <- match?({:cereal, _}, type) do
-        raise "%CompileError{}: No cast for :#{name}"
-      end
-    end)
-  end
-
   defmacro field(name, spec, opts \\ []) do
-    type = type_from_spec(spec)
+    type = Type.derive_from_spec(spec)
 
     quote do
       Module.put_attribute(
@@ -245,7 +205,7 @@ defmodule Breakfast do
   end
 
   defmacro type(spec, opts) do
-    type = type_from_spec(spec)
+    type = Type.derive_from_spec(spec)
 
     quote bind_quoted: [type: type, opts: opts] do
       validate = Keyword.get(opts, :validate)
@@ -259,20 +219,6 @@ defmodule Breakfast do
       if fetch, do: Module.put_attribute(__MODULE__, :breakfast_fetchers, {type, fetch})
     end
   end
-
-  defp type_from_spec([spec]), do: {:list, type_from_spec(spec)}
-  defp type_from_spec({:float, _, []}), do: :float
-  defp type_from_spec({:integer, _, []}), do: :integer
-  defp type_from_spec({:map, _, []}), do: :map
-  defp type_from_spec({:number, _, []}), do: :number
-  defp type_from_spec({{:., _, [{:__aliases__, _, [:String]}, :t]}, _, []}), do: :string
-
-  defp type_from_spec({:cereal, _cereal_module_alias} = type), do: type
-
-  defp type_from_spec({{:., _, [{:__aliases__, _, alias_}, type]}, _, _type_params}),
-    do: {:custom, {alias_, type}}
-
-  defp type_from_spec({type, _, _}), do: {:custom, type}
 
   @spec decode(mod :: module(), params :: term()) :: %Yogurt{}
   def decode(mod, params) do
@@ -311,7 +257,7 @@ defmodule Breakfast do
                   }"
 
           {:validate, retval} ->
-            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got #{
+            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got: #{
                     inspect(retval)
                   }"
         end

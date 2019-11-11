@@ -31,6 +31,7 @@ defmodule Breakfast.MixProject do
 
   defp deps do
     [
+      {:type_reader, github: "MainShayne233/type_reader"},
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.0", only: [:dev, :test], runtime: false}
