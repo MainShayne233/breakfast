@@ -11,6 +11,7 @@ defmodule Breakfast.Type do
 
   @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings)
 
+  @spec derive_from_spec(Macro.t()) :: Breakfast.Field.type() | no_return()
   def derive_from_spec({:cereal, _} = cereal), do: cereal
 
   def derive_from_spec(spec) do
@@ -23,6 +24,7 @@ defmodule Breakfast.Type do
     end
   end
 
+  @spec determine_type(%TerminalType{}) :: Breakfast.result(Breakfast.Field.type())
   defp determine_type(%TerminalType{name: type, bindings: [elem_types: elem_types]})
        when type in [:union, :tuple] do
     with {:ok, determined_elem_types} <- maybe_map(elem_types, &determine_type/1) do
@@ -45,6 +47,7 @@ defmodule Breakfast.Type do
     {:ok, type_name}
   end
 
+  @spec validate(Breakfast.Field.type(), term()) :: [String.t()]
   def validate({:tuple, union_types}, term) do
     with true <- is_tuple(term),
          term_as_list = Tuple.to_list(term),
@@ -98,6 +101,8 @@ defmodule Breakfast.Type do
     end
   end
 
+  @spec maybe_map(Enumerable.t(), (term() -> Breakfast.result(term()))) ::
+          Breakfast.result([term()])
   defp maybe_map(enum, map) do
     Enum.reduce_while(enum, [], fn value, acc ->
       case map.(value) do
