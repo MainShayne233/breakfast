@@ -81,19 +81,4 @@ defmodule User do
 
   def fetch_roles(params, :roles), do: Map.fetch(params, "UserRoles")
 end
-
-iex> Breakfast.decode(User, params)
-%Breakfast.Yogurt{
-  errors: [],
-  params: %{
-    "age" => 20,
-    "email" => "my@email.com",
-    "UserRoles" => ["user", "exec"]
-  },
-  struct: %User{
-    age: 20,
-    email: "my@email.com",
-    roles: ["user", "exec"]
-  }
-}
 ```
