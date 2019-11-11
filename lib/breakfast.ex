@@ -2,6 +2,7 @@ defmodule Breakfast do
   alias Breakfast.{Type, Yogurt}
 
   defmodule Field do
+    @moduledoc false
     use TypedStruct
 
     @type type :: atom() | {:cereal, module()}

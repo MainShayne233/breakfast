@@ -1,4 +1,5 @@
 defmodule Breakfast.Type do
+  @moduledoc false
   alias TypeReader.TerminalType
 
   @understood_primative_type_predicate_mappings %{

@@ -1,4 +1,12 @@
 defmodule Breakfast.Yogurt do
+  @moduledoc """
+  The %#{__MODULE__}{} struct is the resulting value of a call to `Breakfast.decode/2`.
+
+  It contains all the information regarding a particular decode, including:
+  - the params passed in
+  - errors that occured for a given field
+  - the resulting, decoded struct
+  """
   use TypedStruct
 
   typedstruct do
