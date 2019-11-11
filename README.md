@@ -5,6 +5,21 @@
 
 Breakfast is a library for defining data decoders in a declarative, consistent, and succinct way.
 
+## Goals
+
+- Use an interface familiar to the Elixir community
+  - Definition format closely resembles Ecto schema definitions [x]
+  - Result type somewhat resembles an Ecto changeset [x]
+- Use Elixir type specification syntax [x]
+- Reduce boilerplate as much as possible
+  - Default fetch, cast, and validation logic is derived from fields and their types [x]
+  - Definitions are easily composable [x]
+  - Automatic docs and typespecs produced [ ]
+- Allow full custom control of decoding processes
+  - Fetch, cast, and validate procedures can be defined at the definition level, as well as the field level separately [x]
+- Decode failures result in clear errors pointing at what was wrong with the data [x]
+- Helpful error messages [ ]
+
 ## Examples
 
 Out of the box `Breakfast` supports decoding plain Elixir maps with string, snake_case keys with no configuration:
