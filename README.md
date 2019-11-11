@@ -60,3 +60,40 @@ iex> Breakfast.decode(User, %{params | "age" => 20.5})
   struct: %User{age: nil, email: "my@email.com", roles: ["user", "exec"]}
 }
 ```
+
+But what if one of the keys doesn't exactly match the field name? That's okay! Just define a cast function for that field!
+
+```elixir
+params = %{
+  "email" => "my@email.com",
+  "age" => 20,
+  "UserRoles" => ["user", "exec"]
+}
+
+defmodule User do
+  use Breakfast
+
+  cereal do
+    field :email, String.t()
+    field :age, integer()
+    field :roles, [String.t()], fetch: :fetch_roles
+  end
+
+  def fetch_roles(params, :roles), do: Map.fetch(params, "UserRoles") |> IO.inspect()
+end
+
+iex> Breakfast.decode(User, params)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{
+    "age" => 20,
+    "email" => "my@email.com",
+    "UserRoles" => ["user", "exec"]
+  },
+  struct: %User{
+    age: 20,
+    email: "my@email.com",
+    roles: ["user", "exec"]
+  }
+}
+```

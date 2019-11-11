@@ -319,13 +319,29 @@ defmodule BreakfastTest do
   end
 
   describe "README examples" do
-    defmodule User do
-      use Breakfast
+    defmodule READMEExampleOne do
+      defmodule User do
+        use Breakfast
 
-      cereal do
-        field :email, String.t()
-        field :age, integer()
-        field :roles, [String.t()]
+        cereal do
+          field :email, String.t()
+          field :age, integer()
+          field :roles, [String.t()]
+        end
+      end
+    end
+
+    defmodule READMEExampleTwo do
+      defmodule User do
+        use Breakfast
+
+        cereal do
+          field :email, String.t()
+          field :age, integer()
+          field :roles, [String.t()], fetch: :fetch_roles
+        end
+
+        def fetch_roles(params, :roles), do: Map.fetch(params, "UserRoles") |> IO.inspect()
       end
     end
 
@@ -336,14 +352,18 @@ defmodule BreakfastTest do
         "roles" => ["user", "exec"]
       }
 
-      assert Breakfast.decode(User, params) ==
+      assert Breakfast.decode(READMEExampleOne.User, params) ==
                %Breakfast.Yogurt{
                  errors: [],
                  params: %{"age" => 20, "email" => "my@email.com", "roles" => ["user", "exec"]},
-                 struct: %User{age: 20, email: "my@email.com", roles: ["user", "exec"]}
+                 struct: %READMEExampleOne.User{
+                   age: 20,
+                   email: "my@email.com",
+                   roles: ["user", "exec"]
+                 }
                }
 
-      assert Breakfast.decode(User, %{params | "age" => 20.5}) ==
+      assert Breakfast.decode(READMEExampleOne.User, %{params | "age" => 20.5}) ==
                %Breakfast.Yogurt{
                  errors: [age: "expected a integer, got: 20.5"],
                  params: %{
@@ -351,7 +371,34 @@ defmodule BreakfastTest do
                    "email" => "my@email.com",
                    "roles" => ["user", "exec"]
                  },
-                 struct: %User{age: nil, email: "my@email.com", roles: ["user", "exec"]}
+                 struct: %READMEExampleOne.User{
+                   age: nil,
+                   email: "my@email.com",
+                   roles: ["user", "exec"]
+                 }
+               }
+    end
+
+    test "should should respect a custom :fetch function" do
+      params = %{
+        "email" => "my@email.com",
+        "age" => 20,
+        "UserRoles" => ["user", "exec"]
+      }
+
+      assert Breakfast.decode(READMEExampleTwo.User, params) ==
+               %Breakfast.Yogurt{
+                 errors: [],
+                 params: %{
+                   "age" => 20,
+                   "email" => "my@email.com",
+                   "UserRoles" => ["user", "exec"]
+                 },
+                 struct: %READMEExampleTwo.User{
+                   age: 20,
+                   email: "my@email.com",
+                   roles: ["user", "exec"]
+                 }
                }
     end
   end
