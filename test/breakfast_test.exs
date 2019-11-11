@@ -14,7 +14,7 @@ defmodule BreakfastTest do
       %{params: params}
     end
 
-    defmodule User do
+    defmodule Customer do
       use Breakfast
 
       cereal do
@@ -43,13 +43,13 @@ defmodule BreakfastTest do
     end
 
     test "should succeed for valid params", %{params: params} do
-      result = Breakfast.decode(User, params)
+      result = Breakfast.decode(Customer, params)
       assert match?(%Breakfast.Yogurt{errors: []}, result)
     end
 
     test "should result in a parse error if a field is missing", %{params: params} do
       params = Map.delete(params, "age")
-      result = Breakfast.decode(User, params)
+      result = Breakfast.decode(Customer, params)
 
       assert result.errors == [age: "value not found"]
     end
@@ -58,7 +58,7 @@ defmodule BreakfastTest do
       params: params
     } do
       params = Map.put(params, "UserStatus", "Cancelled")
-      result = Breakfast.decode(User, params)
+      result = Breakfast.decode(Customer, params)
       assert result.errors == [status: "invalid value"]
     end
 
@@ -68,7 +68,7 @@ defmodule BreakfastTest do
       params = Map.put(params, "UserStatus", "Approved")
 
       assert assert_raise(RuntimeError, fn ->
-               Breakfast.decode(User, params)
+               Breakfast.decode(Customer, params)
              end) == %RuntimeError{
                message:
                  "Expected status.validate (:validate_status) to return a list, got: :bad_return"
@@ -77,7 +77,7 @@ defmodule BreakfastTest do
 
     test "a bad type should result in a cast error", %{params: params} do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
-      result = Breakfast.decode(User, params)
+      result = Breakfast.decode(Customer, params)
 
       assert result.errors == [email: "expected a binary, got: :shayneAThotmailDOTcom"]
     end
@@ -315,6 +315,44 @@ defmodule BreakfastTest do
                  end
                end
              end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
+    end
+  end
+
+  describe "README examples" do
+    defmodule User do
+      use Breakfast
+
+      cereal do
+        field :email, String.t()
+        field :age, integer()
+        field :roles, [String.t()]
+      end
+    end
+
+    test "should decode plain elixir maps with string, snake_case keys" do
+      params = %{
+        "email" => "my@email.com",
+        "age" => 20,
+        "roles" => ["user", "exec"]
+      }
+
+      assert Breakfast.decode(User, params) ==
+               %Breakfast.Yogurt{
+                 errors: [],
+                 params: %{"age" => 20, "email" => "my@email.com", "roles" => ["user", "exec"]},
+                 struct: %User{age: 20, email: "my@email.com", roles: ["user", "exec"]}
+               }
+
+      assert Breakfast.decode(User, %{params | "age" => 20.5}) ==
+               %Breakfast.Yogurt{
+                 errors: [age: "expected a integer, got: 20.5"],
+                 params: %{
+                   "age" => 20.5,
+                   "email" => "my@email.com",
+                   "roles" => ["user", "exec"]
+                 },
+                 struct: %User{age: nil, email: "my@email.com", roles: ["user", "exec"]}
+               }
     end
   end
 end
