@@ -33,4 +33,15 @@ iex> Breakfast.decode(User, params)
   params: %{"age" => 20, "email" => "my@email.com", "roles" => ["user", "exec"]},
   struct: %User{age: 20, email: "my@email.com", roles: ["user", "exec"]}
 }
+
+iex> Breakfast.decode(User, %{params | "age" => 20.5})
+%Breakfast.Yogurt{
+  errors: [age: "expected a integer, got: 20.5"],
+  params: %{
+    "age" => 20.5,
+    "email" => "my@email.com",
+    "roles" => ["user", "exec"]
+  },
+  struct: %User{age: nil, email: "my@email.com", roles: ["user", "exec"]}
+}
 ```
