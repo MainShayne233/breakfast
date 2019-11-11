@@ -341,7 +341,7 @@ defmodule BreakfastTest do
           field :roles, [String.t()], fetch: :fetch_roles
         end
 
-        def fetch_roles(params, :roles), do: Map.fetch(params, "UserRoles") |> IO.inspect()
+        def fetch_roles(params, :roles), do: Map.fetch(params, "UserRoles")
       end
     end
 
