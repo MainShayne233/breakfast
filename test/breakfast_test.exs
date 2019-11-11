@@ -1,35 +1,8 @@
 defmodule BreakfastTest do
   use ExUnit.Case
-  import TestHelper
   doctest Breakfast
 
-  testmodule Client.User do
-    use Breakfast
-
-    cereal do
-      field(:email, String.t())
-      field(:age, integer(), cast: :int_from_string)
-      field(:timezone, String.t(), default: "US")
-      field(:roles, [String.t()])
-
-      field(:status, String.t(), fetch: :fetch_status, validate: :validate_status)
-    end
-
-    def fetch_status(params, :status), do: Map.fetch(params, "UserStatus")
-
-    def validate_status("Pending"), do: []
-    def validate_status("Approved"), do: :bad_return
-    def validate_status(_other), do: ["invalid value"]
-
-    def int_from_string(value) when is_binary(value) do
-      case Integer.parse(value) do
-        {int, ""} -> {:ok, int}
-        _other -> :error
-      end
-    end
-
-    def int_from_string(_), do: :error
-
+  describe "basic validations" do
     setup do
       params = %{
         "email" => "shayne@hotmail.com",
@@ -41,14 +14,42 @@ defmodule BreakfastTest do
       %{params: params}
     end
 
+    defmodule User do
+      use Breakfast
+
+      cereal do
+        field(:email, String.t())
+        field(:age, integer(), cast: :int_from_string)
+        field(:timezone, String.t(), default: "US")
+        field(:roles, [String.t()])
+
+        field(:status, String.t(), fetch: :fetch_status, validate: :validate_status)
+      end
+
+      def fetch_status(params, :status), do: Map.fetch(params, "UserStatus")
+
+      def validate_status("Pending"), do: []
+      def validate_status("Approved"), do: :bad_return
+      def validate_status(_other), do: ["invalid value"]
+
+      def int_from_string(value) when is_binary(value) do
+        case Integer.parse(value) do
+          {int, ""} -> {:ok, int}
+          _other -> :error
+        end
+      end
+
+      def int_from_string(_), do: :error
+    end
+
     test "should succeed for valid params", %{params: params} do
-      result = Breakfast.decode(Client.User, params)
+      result = Breakfast.decode(User, params)
       assert match?(%Breakfast.Yogurt{errors: []}, result)
     end
 
     test "should result in a parse error if a field is missing", %{params: params} do
       params = Map.delete(params, "age")
-      result = Breakfast.decode(Client.User, params)
+      result = Breakfast.decode(User, params)
 
       assert result.errors == [age: "value not found"]
     end
@@ -57,7 +58,7 @@ defmodule BreakfastTest do
       params: params
     } do
       params = Map.put(params, "UserStatus", "Cancelled")
-      result = Breakfast.decode(Client.User, params)
+      result = Breakfast.decode(User, params)
       assert result.errors == [status: "invalid value"]
     end
 
@@ -67,7 +68,7 @@ defmodule BreakfastTest do
       params = Map.put(params, "UserStatus", "Approved")
 
       assert assert_raise(RuntimeError, fn ->
-               Breakfast.decode(Client.User, params)
+               Breakfast.decode(User, params)
              end) == %RuntimeError{
                message:
                  "Expected status.validate (:validate_status) to return a list, got: :bad_return"
@@ -76,80 +77,43 @@ defmodule BreakfastTest do
 
     test "a bad type should result in a cast error", %{params: params} do
       params = Map.put(params, "email", :shayneAThotmailDOTcom)
-      result = Breakfast.decode(Client.User, params)
+      result = Breakfast.decode(User, params)
 
       assert result.errors == [email: "expected a binary, got: :shayneAThotmailDOTcom"]
     end
   end
 
-  testmodule InferValidator do
-    use Breakfast
+  describe "fetching" do
+    setup do
+      params = %{"firstName" => "shawn", "lastName" => "trembles", "UserAge" => 28}
+      %{params: params}
+    end
 
-    test "should give a helpful error if unable to infer the validator for a custom type" do
-      defmodule Client.Request do
-        use Breakfast
+    defmodule JSUser do
+      use Breakfast
 
-        cereal do
-          field(:statuses, Breakfast.TestDefinitions.status())
-        end
+      cereal fetch: &__MODULE__.camel_key_fetch/2 do
+        field(:first_name, String.t())
+        field(:last_name, String.t())
+        field(:age, integer(), fetch: :fetch_age)
+      end
+
+      def fetch_age(data, :age), do: Map.fetch(data, "UserAge")
+
+      def camel_key_fetch(params, key) do
+        {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
+        camel_key = String.downcase(first_char) <> rest
+        Map.fetch(params, camel_key)
       end
     end
-  end
 
-  testmodule DefaultParse.JSUser do
-    use Breakfast
-
-    cereal fetch: &DefaultParse.JSUser.camel_key_fetch/2 do
-      field(:first_name, String.t())
-      field(:last_name, String.t())
-    end
-
-    def camel_key_fetch(params, key) do
-      {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
-      camel_key = String.downcase(first_char) <> rest
-      Map.fetch(params, camel_key)
-    end
-
-    test "should use the :default_parse function if one is defined" do
-      params = %{"firstName" => "shawn", "lastName" => "trembles"}
-      result = Breakfast.decode(__MODULE__, params)
-
-      assert result == %Breakfast.Yogurt{
-               errors: [],
-               params: %{"firstName" => "shawn", "lastName" => "trembles"},
-               struct: %__MODULE__{
-                 first_name: "shawn",
-                 last_name: "trembles"
-               }
-             }
-    end
-  end
-
-  testmodule DefaultParseOverride.JSUser do
-    use Breakfast
-
-    cereal fetch: &__MODULE__.camel_key_fetch/2 do
-      field(:first_name, String.t())
-      field(:last_name, String.t())
-      field(:age, integer(), fetch: :fetch_age)
-    end
-
-    def fetch_age(data, :age), do: Map.fetch(data, "UserAge")
-
-    def camel_key_fetch(params, key) do
-      {first_char, rest} = key |> to_string() |> Macro.camelize() |> String.split_at(1)
-      camel_key = String.downcase(first_char) <> rest
-      Map.fetch(params, camel_key)
-    end
-
-    test "should use the field-level fetch over the default fetch" do
-      params = %{"firstName" => "shawn", "lastName" => "trembles", "UserAge" => 28}
-      result = Breakfast.decode(__MODULE__, params)
+    test "should respect fetch presedence", %{params: params} do
+      result = Breakfast.decode(JSUser, params)
 
       assert result == %Breakfast.Yogurt{
                errors: [],
                params: %{"UserAge" => 28, "firstName" => "shawn", "lastName" => "trembles"},
-               struct: %BreakfastTest.DefaultParseOverride.JSUser{
+               struct: %JSUser{
                  age: 28,
                  first_name: "shawn",
                  last_name: "trembles"
@@ -158,21 +122,23 @@ defmodule BreakfastTest do
     end
   end
 
-  testmodule External do
-    use Breakfast
-
-    defmodule Config do
+  describe "externally defined cereals" do
+    defmodule Server do
       use Breakfast
 
-      cereal do
-        field(:sleep_timeout, integer())
-        field(:timezone, String.t())
-      end
-    end
+      defmodule Config do
+        use Breakfast
 
-    cereal do
-      field(:email, String.t())
-      field(:config, {:cereal, Config})
+        cereal do
+          field(:sleep_timeout, integer())
+          field(:timezone, String.t())
+        end
+      end
+
+      cereal do
+        field(:email, String.t())
+        field(:config, {:cereal, Config})
+      end
     end
 
     test "should properly handle an externally defined cereal" do
@@ -181,13 +147,13 @@ defmodule BreakfastTest do
         "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
       }
 
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(Server, params)
 
       assert result == %Breakfast.Yogurt{
                errors: [],
                params: params,
-               struct: %BreakfastTest.External{
-                 config: %BreakfastTest.External.Config{
+               struct: %Server{
+                 config: %Server.Config{
                    sleep_timeout: 50000,
                    timezone: "UTC"
                  },
@@ -202,7 +168,7 @@ defmodule BreakfastTest do
         "config" => %{"sleep_timeout" => [], "timezone" => :UTC}
       }
 
-      result = Breakfast.decode(__MODULE__, bad_params)
+      result = Breakfast.decode(Server, bad_params)
 
       assert result.errors == [
                config: [
@@ -213,48 +179,56 @@ defmodule BreakfastTest do
     end
   end
 
-  testmodule SuperNestedDecoder do
-    use Breakfast
+  describe "arbitrary nesting" do
+    setup do
+      params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
+      %{params: params}
+    end
 
-    defmodule A do
+    defmodule SuperNestedDecoder do
       use Breakfast
 
-      defmodule B do
+      defmodule A do
         use Breakfast
 
-        defmodule C do
+        defmodule B do
           use Breakfast
 
+          defmodule C do
+            use Breakfast
+
+            cereal do
+              field(:value, number())
+            end
+          end
+
           cereal do
-            field(:value, number())
+            field(:c, {:cereal, C})
           end
         end
 
         cereal do
-          field(:c, {:cereal, C})
+          field(:b, {:cereal, B})
         end
       end
 
       cereal do
-        field(:b, {:cereal, B})
+        field(:a, {:cereal, A})
       end
     end
 
-    cereal do
-      field(:a, {:cereal, A})
-    end
-
-    test "If a deeply nested decoder fails, the error should be reporting from that level" do
-      params = %{"a" => %{"b" => %{"c" => %{"value" => 1}}}}
+    test "If a deeply nested decoder fails, the error should be reporting from that level", %{
+      params: params
+    } do
       result = Breakfast.decode(SuperNestedDecoder, params)
 
       assert result == %Breakfast.Yogurt{
                errors: [],
                params: %{"a" => %{"b" => %{"c" => %{"value" => 1}}}},
-               struct: %BreakfastTest.SuperNestedDecoder{
-                 a: %BreakfastTest.SuperNestedDecoder.A{
-                   b: %BreakfastTest.SuperNestedDecoder.A.B{
-                     c: %BreakfastTest.SuperNestedDecoder.A.B.C{value: 1}
+               struct: %SuperNestedDecoder{
+                 a: %SuperNestedDecoder.A{
+                   b: %SuperNestedDecoder.A.B{
+                     c: %SuperNestedDecoder.A.B.C{value: 1}
                    }
                  }
                }
@@ -262,9 +236,7 @@ defmodule BreakfastTest do
     end
   end
 
-  testmodule ComplexTypes do
-    use Breakfast
-
+  describe "complex types" do
     setup do
       %{
         params: %{
@@ -275,32 +247,36 @@ defmodule BreakfastTest do
       }
     end
 
-    cereal do
-      field :rgb_color, Breakfast.TestDefinitions.rgb_color(), cast: :string_to_existing_atom
-      field :tag_groupings, [[String.t()]]
-      field :ratio, {integer(), integer()}, cast: :pair_from_list
-    end
+    defmodule ColorData do
+      use Breakfast
 
-    def pair_from_list([lhs, rhs]), do: {:ok, {lhs, rhs}}
-    def pair_from_list(_), do: :error
+      cereal do
+        field :rgb_color, Breakfast.TestDefinitions.rgb_color(), cast: :string_to_existing_atom
+        field :tag_groupings, [[String.t()]]
+        field :ratio, {integer(), integer()}, cast: :pair_from_list
+      end
 
-    def string_to_existing_atom(binary) do
-      {:ok, String.to_existing_atom(binary)}
-    rescue
-      _ in ArgumentError ->
-        :error
+      def pair_from_list([lhs, rhs]), do: {:ok, {lhs, rhs}}
+      def pair_from_list(_), do: :error
+
+      def string_to_existing_atom(binary) do
+        {:ok, String.to_existing_atom(binary)}
+      rescue
+        _ in ArgumentError ->
+          :error
+      end
     end
 
     test "should handle union types", %{params: params} do
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == []
 
       params = %{params | "rgb_color" => "green"}
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == []
 
       params = %{params | "rgb_color" => "cyan"}
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
 
       assert result.errors == [
                rgb_color:
@@ -309,28 +285,26 @@ defmodule BreakfastTest do
     end
 
     test "should handle multi-dimensional lists", %{params: params} do
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == []
 
       params = %{params | "tag_groupings" => ["user", "admin"]}
 
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == [tag_groupings: "expected a list, got: \"user\""]
     end
 
     test "should support tuples", %{params: params} do
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == []
 
       params = %{params | "ratio" => [7, 5.0]}
-      result = Breakfast.decode(__MODULE__, params)
+      result = Breakfast.decode(ColorData, params)
       assert result.errors == [ratio: "expected {:integer, :integer}, got: {7, 5.0}"]
     end
   end
 
-  testmodule TypeError do
-    use Breakfast
-
+  describe "errors" do
     test "should raise error when type cannot be determined" do
       assert assert_raise(RuntimeError, fn ->
                defmodule WillRaise do
