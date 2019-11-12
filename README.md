@@ -7,4 +7,4 @@ Breakfast is a library for defining data decoders in a declarative, consistent, 
 
 ## Current State
 
-Development of `v0.1` is current underyway! Checkout out the [roadmap](./ROAMDMAP/v0.1md) to see what's comming/if you are looking to contribute!
+Development of `v0.1` is currently underyway! Checkout out the [roadmap](./ROAMDMAP/v0.1md) to see what's comming/if you are looking to contribute!
