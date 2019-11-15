@@ -306,15 +306,33 @@ defmodule BreakfastTest do
 
   describe "errors" do
     test "should raise error when type cannot be determined" do
-      assert assert_raise(RuntimeError, fn ->
-               defmodule WillRaise do
-                 use Breakfast
+      %Breakfast.TypeError{message: message} =
+        assert_raise Breakfast.TypeError, fn ->
+          defmodule WillRaise do
+            use Breakfast
 
-                 cereal do
-                   field :crazy, DoesNotExist.t()
-                 end
-               end
-             end) == %RuntimeError{message: "Failed to derive type from spec: DoesNotExist.t()"}
+            cereal do
+              field :crazy, DoesNotExist.t()
+            end
+          end
+        end
+
+      assert "\n\n  Failed to derive type `DoesNotExist.t()` from spec." <> _ = message
+    end
+
+    test "should raise a compile-time error when `type` is missing an option" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal do
+              type atom(), []
+            end
+          end
+        end
+
+      assert "\n\n  Expected a :fetch, :cast or :validate for `type atom()`:" <> _ = message
     end
   end
 

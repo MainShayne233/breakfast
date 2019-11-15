@@ -158,12 +158,25 @@ defmodule Breakfast.Using do
   defmacro type(spec, opts) do
     type = Type.derive_from_spec(spec)
 
-    quote bind_quoted: [type: type, opts: opts] do
+    quote bind_quoted: [type: type, opts: opts, spec_string: Macro.to_string(spec)] do
       validate = Keyword.get(opts, :validate)
       cast = Keyword.get(opts, :cast)
       fetch = Keyword.get(opts, :fetch)
 
-      unless validate || cast || fetch, do: raise("add :cast, :validate or :fetch to type/2")
+      unless validate || cast || fetch do
+        raise Breakfast.CompileError, """
+
+
+          Expected a :fetch, :cast or :validate for `type #{spec_string}`:
+
+          cereal do
+            ...
+            type #{spec_string}, fetch: :all_caps_key
+          end
+
+          def all_caps_key(data, key), do: Map.fetch(data, String.upcase(key))
+        """
+      end
 
       if validate, do: Module.put_attribute(__MODULE__, :breakfast_validators, {type, validate})
       if cast, do: Module.put_attribute(__MODULE__, :breakfast_casters, {type, cast})
