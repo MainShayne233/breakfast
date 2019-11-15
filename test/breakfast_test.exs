@@ -54,7 +54,7 @@ defmodule BreakfastTest do
       assert result.errors == [age: "value not found"]
     end
 
-    test "should result in a parse error if the custom parse function returns :error", %{
+    test "should result in a parse error if the custom validate function returns :error", %{
       params: params
     } do
       params = Map.put(params, "UserStatus", "Cancelled")
@@ -62,17 +62,22 @@ defmodule BreakfastTest do
       assert result.errors == [status: "invalid value"]
     end
 
-    test "should raise a runtime exception if the custom parse returns a bad value", %{
+    test "should raise a runtime exception if the custom validate returns a bad value", %{
       params: params
     } do
       params = Map.put(params, "UserStatus", "Approved")
 
-      assert assert_raise(RuntimeError, fn ->
-               Breakfast.decode(Customer, params)
-             end) == %RuntimeError{
-               message:
-                 "Expected status.validate (:validate_status) to return a list, got: :bad_return"
-             }
+      %Breakfast.ValidateError{message: message, field: field, type: type, validator: validator} =
+        assert_raise Breakfast.ValidateError, fn ->
+          Breakfast.decode(Customer, params)
+        end
+
+      assert "Expected validator for `status` (`:validate_status`) to return a list, got `:bad_return`" =
+               message
+
+      assert :status = field
+      assert :binary = type
+      assert :validate_status = validator
     end
 
     test "a bad type should result in a cast error", %{params: params} do
@@ -98,6 +103,7 @@ defmodule BreakfastTest do
         field(:age, integer(), fetch: :fetch_age)
       end
 
+      def fetch_age(%{bad_return: true}, :age), do: :bad_return
       def fetch_age(data, :age), do: Map.fetch(data, "UserAge")
 
       def camel_key_fetch(params, key) do
@@ -119,6 +125,24 @@ defmodule BreakfastTest do
                  last_name: "trembles"
                }
              }
+    end
+
+    test "should raise a runtime exception if the custom fetch returns a bad value", %{
+      params: params
+    } do
+      params = Map.put(params, :bad_return, true)
+
+      %Breakfast.FetchError{message: message, field: field, type: type, fetcher: fetcher} =
+        assert_raise Breakfast.FetchError, fn ->
+          Breakfast.decode(JSUser, params)
+        end
+
+      assert "Expected fetcher for `age` (`:fetch_age`) to return `{:ok, value}` or `:error`, got `:bad_return`" =
+               message
+
+      assert :age = field
+      assert :integer = type
+      assert :fetch_age = fetcher
     end
   end
 
