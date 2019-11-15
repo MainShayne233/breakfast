@@ -64,8 +64,23 @@ defmodule Breakfast.Using do
     end
   end
 
-  defmacro cereal(_bad_opts, _bad_expr) do
-    raise "Invalid cereal definition"
+  defmacro cereal(bad_opts, _bad_expr) when not is_list(bad_opts) do
+    raise Breakfast.CompileError, """
+
+
+      Expected a keywords list as the first argument for `cereal` but got `#{inspect(bad_opts)}`.
+      Allowed options for `cereal` are `:fetch`, `:cast` and `:validate`:
+
+      cereal fetch: :all_caps_key do
+        ...
+      end
+
+      def all_caps_key(data, key), do: Map.fetch(data, String.upcase(key))
+    """
+  end
+
+  defmacro cereal(_opts, _bad_expr) do
+    raise Breakfast.CompileError, "Incomplete cereal definition, it's missing a `do` block."
   end
 
   @spec __define_type_spec__([Macro.t()]) :: Macro.t()

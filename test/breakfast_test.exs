@@ -72,7 +72,7 @@ defmodule BreakfastTest do
           Breakfast.decode(Customer, params)
         end
 
-      assert "Expected validator for `status` (`:validate_status`) to return a list, got `:bad_return`" =
+      assert "Expected validator for `status` (`:validate_status`) to return a list but got `:bad_return`" =
                message
 
       assert :status = field
@@ -137,7 +137,7 @@ defmodule BreakfastTest do
           Breakfast.decode(JSUser, params)
         end
 
-      assert "Expected fetcher for `age` (`:fetch_age`) to return `{:ok, value}` or `:error`, got `:bad_return`" =
+      assert "Expected fetcher for `age` (`:fetch_age`) to return `{:ok, value}` or `:error` but got `:bad_return`" =
                message
 
       assert :age = field
@@ -315,7 +315,7 @@ defmodule BreakfastTest do
       params = %{params | "tag_groupings" => ["user", "admin"]}
 
       result = Breakfast.decode(ColorData, params)
-      assert result.errors == [tag_groupings: "expected a list, got: \"user\""]
+      assert result.errors == [tag_groupings: "expected a list but got: \"user\""]
     end
 
     test "should support tuples", %{params: params} do
@@ -357,6 +357,35 @@ defmodule BreakfastTest do
         end
 
       assert "\n\n  Expected a :fetch, :cast or :validate for `type atom()`:" <> _ = message
+    end
+
+    test "should raise a compile-time error when the options for cereal are invalid" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal :not_a_list do
+              type atom(), []
+            end
+          end
+        end
+
+      assert "\n\n  Expected a keywords list as the first argument for `cereal` but got `:not_a_list`." <>
+               _ = message
+    end
+
+    test "should raise a compile-time error when the cereal is invalid" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal []
+          end
+        end
+
+      assert "Incomplete cereal definition, it's missing a `do` block." = message
     end
   end
 

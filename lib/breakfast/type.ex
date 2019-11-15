@@ -102,7 +102,7 @@ defmodule Breakfast.Type do
     end)
   end
 
-  def validate({:list, _type}, term), do: ["expected a list, got: #{inspect(term)}"]
+  def validate({:list, _type}, term), do: ["expected a list but got: #{inspect(term)}"]
 
   for {type, predicate} <- @understood_primative_type_predicate_mappings do
     def validate(unquote(type), term) do
