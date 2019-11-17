@@ -18,6 +18,7 @@ defmodule Breakfast do
            name: name,
            fetcher: fetcher,
            caster: caster,
+           type: type,
            validator: validator
          } = field,
          %Yogurt{errors: errors, struct: struct} = yogurt ->
@@ -36,19 +37,34 @@ defmodule Breakfast do
             %Yogurt{yogurt | errors: Enum.map(validation_errors, &{name, &1}) ++ errors}
 
           {:fetch, retval} ->
-            raise "Expected #{name}.fetch (#{inspect(fetcher)}) to return an {:ok, value} tuple, got #{
-                    inspect(retval)
-                  }"
+            raise Breakfast.FetchError,
+              message:
+                "Expected fetcher for `#{name}` (`#{inspect(fetcher)}`) to return `{:ok, value}` or `:error` but got `#{
+                  inspect(retval)
+                }`",
+              field: name,
+              type: type,
+              fetcher: fetcher
 
           {:cast, retval} ->
-            raise "Expected #{name}.cast (#{inspect(caster)}) to return an {:ok, value} tuple or :error, got #{
-                    inspect(retval)
-                  }"
+            raise Breakfast.CastError,
+              message:
+                "Expected caster for `#{name}` (`#{inspect(caster)}`) to return `{:ok, value}` or `:error` but got `#{
+                  inspect(retval)
+                }`",
+              field: name,
+              type: type,
+              caster: caster
 
           {:validate, retval} ->
-            raise "Expected #{name}.validate (#{inspect(validator)}) to return a list, got: #{
-                    inspect(retval)
-                  }"
+            raise Breakfast.ValidateError,
+              message:
+                "Expected validator for `#{name}` (`#{inspect(validator)}`) to return a list but got `#{
+                  inspect(retval)
+                }`",
+              field: name,
+              type: type,
+              validator: validator
         end
       end
     )

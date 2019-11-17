@@ -21,7 +21,19 @@ defmodule Breakfast.Type do
       determined_type
     else
       _ ->
-        raise "Failed to derive type from spec: #{Macro.to_string(spec)}"
+        raise Breakfast.TypeError, """
+
+
+          Failed to derive type `#{Macro.to_string(spec)}` from spec. Did you forget to define it?
+
+          defmodule MyModule do
+            @type #{Macro.to_string(spec)} :: some_type()
+
+            cereal do
+              ...
+            end
+          end
+        """
     end
   end
 
@@ -90,7 +102,7 @@ defmodule Breakfast.Type do
     end)
   end
 
-  def validate({:list, _type}, term), do: ["expected a list, got: #{inspect(term)}"]
+  def validate({:list, _type}, term), do: ["expected a list but got: #{inspect(term)}"]
 
   for {type, predicate} <- @understood_primative_type_predicate_mappings do
     def validate(unquote(type), term) do
