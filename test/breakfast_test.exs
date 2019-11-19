@@ -520,4 +520,57 @@ defmodule BreakfastTest do
                }
     end
   end
+
+  describe "automatic type support" do
+    defmodule LotsOfTypes do
+      use Breakfast
+
+      cereal do
+        field(:any, any())
+        field(:term, term())
+        field(:atom, atom())
+        field(:binary, binary())
+        field(:boolean, boolean())
+        field(:keyword, keyword())
+        field(:typed_keyword, keyword(binary()))
+        field(:map, map())
+        field(:struct, struct())
+        field(:tuple, tuple())
+        field(:integer, integer())
+        field(:float, float())
+        field(:number, number())
+        field(:neg_integer, neg_integer())
+        field(:non_neg_integer, non_neg_integer())
+        field(:pos_integer, pos_integer())
+        field(:list, list())
+        field(:nonempty_list, nonempty_list())
+        field(:typed_list, list(atom()))
+        field(:nonempty_typed_list, nonempty_list(atom()))
+        field(:mfa, mfa())
+        field(:module, module())
+        field(:literal_atom, :hey)
+        field(:literal_integer, 5)
+        field(:literal_range, 5..10)
+        field(:literal_typed_list, [atom()])
+        field(:literal_empty_list, [])
+        field(:literal_nonempty_list, [...])
+        field(:literal_typed_nonempty_list, [atom(), ...])
+        field(:literal_keyword, format: atom())
+        field(:literal_empty_map, %{})
+        field(:literal_atom_key_map, %{format: atom()})
+
+        field(:literal_required_option_key_map, %{
+          required(binary()) => atom(),
+          optional(atom()) => binary()
+        })
+
+        field(:literal_struct, %Struct{})
+        field(:literal_struct, %Struct{name: binary()})
+        field(:literal_empty_tuple, {})
+        field(:literal_typed_tuple, {atom(), binary(), integer()})
+        field(:union_type, integer() | :never | :infinity)
+        field(:remote, Breakfast.TestDefinitions.rgb_color())
+      end
+    end
+  end
 end
