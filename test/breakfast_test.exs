@@ -387,6 +387,53 @@ defmodule BreakfastTest do
 
       assert "Incomplete cereal definition, it's missing a `do` block." = message
     end
+
+    test "should raise a compile-time error when field is given one or more invalid options" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal do
+              field :crazy, atom(), invalid_opt_1: :a, invalid_opt_2: :b
+            end
+          end
+        end
+
+      assert "\n\n  Invalid options given to `field`: :invalid_opt_1, :invalid_opt_2." <> _ =
+               message
+    end
+
+    test "should raise a compile-time error when type is given one or more invalid options" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal do
+              type atom(), invalid_opt_1: :a, invalid_opt_2: :b
+            end
+          end
+        end
+
+      assert "\n\n  Invalid options given to `type`: :invalid_opt_1, :invalid_opt_2." <> _ =
+               message
+    end
+
+    test "should raise a compile-time error when cereal is given one or more invalid options" do
+      %Breakfast.CompileError{message: message} =
+        assert_raise Breakfast.CompileError, fn ->
+          defmodule WillRaise do
+            use Breakfast
+
+            cereal invalid_opt_1: :a, invalid_opt_2: :b do
+            end
+          end
+        end
+
+      assert "\n\n  Invalid options given to `cereal`: :invalid_opt_1, :invalid_opt_2." <> _ =
+               message
+    end
   end
 
   describe "README examples" do
