@@ -20,6 +20,8 @@ defmodule Breakfast.Using do
   defmacro cereal(opts \\ [], expr)
 
   defmacro cereal(opts, do: block) when is_list(opts) do
+    validate_opts!("cereal", opts, [:fetch, :cast, :validate])
+
     cereal_validator = Keyword.get(opts, :validate)
     cereal_caster = Keyword.get(opts, :cast)
     cereal_fetcher = Keyword.get(opts, :fetch)
@@ -140,6 +142,7 @@ defmodule Breakfast.Using do
 
   @spec field(atom(), Macro.t(), keyword()) :: Macro.t()
   defmacro field(name, spec, opts \\ []) do
+    validate_opts!("field", opts, [:fetch, :cast, :validate, :default])
     type = Type.derive_from_spec(spec)
 
     quote do
@@ -171,6 +174,7 @@ defmodule Breakfast.Using do
 
   @spec type(Macro.t(), keyword()) :: Macro.t()
   defmacro type(spec, opts) do
+    validate_opts!("type", opts, [:fetch, :cast, :validate])
     type = Type.derive_from_spec(spec)
 
     quote bind_quoted: [type: type, opts: opts, spec_string: Macro.to_string(spec)] do
@@ -196,6 +200,36 @@ defmodule Breakfast.Using do
       if validate, do: Module.put_attribute(__MODULE__, :breakfast_validators, {type, validate})
       if cast, do: Module.put_attribute(__MODULE__, :breakfast_casters, {type, cast})
       if fetch, do: Module.put_attribute(__MODULE__, :breakfast_fetchers, {type, fetch})
+    end
+  end
+
+  @spec validate_opts!(String.t(), Keyword.t(), list(atom())) :: :ok | no_return()
+  defp validate_opts!(fun, opts, valid_opts) do
+    keys = Keyword.keys(opts)
+
+    with [_ | _] = invalid_opts <- Enum.filter(keys, &(&1 not in valid_opts)) do
+      raise Breakfast.CompileError,
+            """
+
+
+              Invalid options given to `#{fun}`: #{inspect_opts(invalid_opts)}.
+              Allowed options are #{inspect_opts(valid_opts)}.
+            """
+    end
+
+    :ok
+  end
+
+  @spec inspect_opts(list()) :: String.t()
+  defp inspect_opts(opts) when is_list(opts) do
+    opts
+    |> Enum.reduce(:first, fn
+      opt, :first -> inspect(opt)
+      opt, acc -> [acc, ", " | inspect(opt)]
+    end)
+    |> case do
+      :first -> ""
+      list -> IO.iodata_to_binary(list)
     end
   end
 end
