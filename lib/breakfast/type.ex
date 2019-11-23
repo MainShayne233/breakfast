@@ -1,6 +1,7 @@
 defmodule Breakfast.Type do
   @moduledoc false
   alias TypeReader.TerminalType
+  alias Breakfast.Field
 
   @understood_primative_type_predicate_mappings %{
     any: {__MODULE__, :is_anything},
@@ -44,7 +45,7 @@ defmodule Breakfast.Type do
                                   :empty_map
                                 ]
 
-  @spec derive_from_spec(Macro.t()) :: Breakfast.Field.type() | no_return()
+  @spec derive_from_spec(Macro.t()) :: Field.type() | no_return()
   def derive_from_spec({:cereal, _} = cereal), do: cereal
 
   def derive_from_spec(spec) do
@@ -69,7 +70,7 @@ defmodule Breakfast.Type do
     end
   end
 
-  @spec determine_type(%TerminalType{}) :: Breakfast.result(Breakfast.Field.type())
+  @spec determine_type(%TerminalType{}) :: Breakfast.result(Field.type())
   defp determine_type(%TerminalType{name: :literal, bindings: [value: min..max]}) do
     {:ok, {:range, {min, max}}}
   end
@@ -152,7 +153,7 @@ defmodule Breakfast.Type do
     end
   end
 
-  @spec validate(Breakfast.Field.type(), term()) :: [String.t()]
+  @spec validate(Field.type(), term()) :: [String.t()]
   def validate({:tuple, union_types}, term) do
     with true <- is_tuple(term),
          term_as_list = Tuple.to_list(term),
@@ -296,9 +297,10 @@ defmodule Breakfast.Type do
     end
   end
 
-  defp validate_values({:required, required_fields}, term) do
+  @spec validate_values(Field.type(), keyword()) :: [String.t()]
+  defp validate_values({:required, required_fields}, keyword) do
     Enum.reduce(required_fields, [], fn {key, value_type}, acc ->
-      with {:ok, value} <- Keyword.fetch(term, key),
+      with {:ok, value} <- Keyword.fetch(keyword, key),
            [] <- validate(value_type, value) do
         acc
       else
@@ -320,10 +322,11 @@ defmodule Breakfast.Type do
     end)
   end
 
-  defp validate_required_map_fields(required, term) do
+  @spec validate_required_map_fields([Field.type()], map()) :: [String.t()]
+  defp validate_required_map_fields(required, map) do
     Enum.reduce(required, [], fn
       {{:literal, key}, value_type}, acc ->
-        with {:ok, value} <- Map.fetch(term, key),
+        with {:ok, value} <- Map.fetch(map, key),
              [] <- validate(value_type, value) do
           acc
         else
@@ -343,7 +346,7 @@ defmodule Breakfast.Type do
         end
 
       {key_type, value_type}, acc ->
-        Enum.any?(term, fn {key, value} ->
+        Enum.any?(map, fn {key, value} ->
           case {validate(key_type, key), validate(value_type, value)} do
             {[], []} ->
               true
@@ -362,9 +365,10 @@ defmodule Breakfast.Type do
     end)
   end
 
-  defp validate_optional_map_fields(optional, term) do
+  @spec validate_optional_map_fields([Field.type()], map()) :: [String.t()]
+  defp validate_optional_map_fields(optional, map) do
     Enum.reduce(optional, [], fn {key, value_type}, acc ->
-      with {:ok, value} <- Map.fetch(term, key),
+      with {:ok, value} <- Map.fetch(map, key),
            [] <- validate(value_type, value) do
         acc
       else
@@ -377,6 +381,7 @@ defmodule Breakfast.Type do
     end)
   end
 
+  @spec display_type(Field.type()) :: String.t()
   defp display_type({:required, required_fields}) do
     displayed_fields =
       Enum.map(required_fields, fn {key, type} ->
@@ -397,22 +402,30 @@ defmodule Breakfast.Type do
 
   defp display_type(type), do: inspect(type)
 
+  @spec is_anything(term()) :: true
   def is_anything(_), do: true
 
+  @spec is_keyword(term()) :: boolean()
   def is_keyword(term) do
     is_list(term) and Enum.all?(term, fn {key, _} -> is_atom(key) end)
   end
 
+  @spec is_struct(term()) :: boolean()
   def is_struct(term), do: match?(%_{}, term)
 
+  @spec is_neg_integer(term()) :: boolean()
   def is_neg_integer(term), do: is_integer(term) and term < 0
 
+  @spec is_non_neg_integer(term()) :: boolean()
   def is_non_neg_integer(term), do: is_integer(term) and term >= 0
 
+  @spec is_pos_integer(term()) :: boolean()
   def is_pos_integer(term), do: is_integer(term) and term > 0
 
+  @spec is_nonempty_list(term()) :: boolean()
   def is_nonempty_list(term), do: match?([_ | _], term)
 
+  @spec is_mfa(term()) :: boolean()
   def is_mfa(term) do
     case term do
       {module, function, arity}
@@ -424,7 +437,9 @@ defmodule Breakfast.Type do
     end
   end
 
+  @spec is_empty_list(term()) :: boolean()
   def is_empty_list(term), do: match?([], term)
 
+  @spec is_empty_map(term()) :: boolean()
   def is_empty_map(term), do: term == %{}
 end
