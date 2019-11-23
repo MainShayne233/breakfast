@@ -6,6 +6,10 @@ if Mix.env() == :test do
   defmodule Breakfast.TestDefinitions do
     @moduledoc false
 
+    defmodule Struct do
+      defstruct [:name]
+    end
+
     @type status :: :approved | :pending | :rejected
 
     @type rgb_color :: :red | :green | :blue

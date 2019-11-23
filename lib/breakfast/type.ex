@@ -3,6 +3,8 @@ defmodule Breakfast.Type do
   alias TypeReader.TerminalType
 
   @understood_primative_type_predicate_mappings %{
+    map: :is_map,
+    boolean: :is_boolean,
     binary: :is_binary,
     integer: :is_integer,
     float: :is_float,
@@ -10,7 +12,23 @@ defmodule Breakfast.Type do
     atom: :is_atom
   }
 
-  @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings)
+  @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings) ++
+                                [
+                                  :term,
+                                  :any,
+                                  :keyword,
+                                  :struct,
+                                  :tuple,
+                                  :neg_integer,
+                                  :non_neg_integer,
+                                  :pos_integer,
+                                  :list,
+                                  :nonempty_list,
+                                  :mfa,
+                                  :module,
+                                  :empty_list,
+                                  :empty_map
+                                ]
 
   @spec derive_from_spec(Macro.t()) :: Breakfast.Field.type() | no_return()
   def derive_from_spec({:cereal, _} = cereal), do: cereal
@@ -38,17 +56,8 @@ defmodule Breakfast.Type do
   end
 
   @spec determine_type(%TerminalType{}) :: Breakfast.result(Breakfast.Field.type())
-  defp determine_type(%TerminalType{name: type, bindings: [elem_types: elem_types]})
-       when type in [:union, :tuple] do
-    with {:ok, determined_elem_types} <- maybe_map(elem_types, &determine_type/1) do
-      {:ok, {type, determined_elem_types}}
-    end
-  end
-
-  defp determine_type(%TerminalType{name: :list, bindings: [type: elem_type]}) do
-    with {:ok, determined_elem_type} <- determine_type(elem_type) do
-      {:ok, {:list, determined_elem_type}}
-    end
+  defp determine_type(%TerminalType{name: :literal, bindings: [value: min..max]}) do
+    {:ok, {:range, {min, max}}}
   end
 
   defp determine_type(%TerminalType{name: :literal, bindings: [value: literal_value]}) do
@@ -58,6 +67,48 @@ defmodule Breakfast.Type do
   defp determine_type(%TerminalType{name: type_name, bindings: []})
        when type_name in @understood_primative_types do
     {:ok, type_name}
+  end
+
+  defp determine_type(%TerminalType{
+         name: :keyword,
+         bindings: [
+           type: {:required_keys, required_keys}
+         ]
+       }) do
+    with {:ok, keyed_types} <-
+           maybe_map(required_keys, fn {key, type} ->
+             with :error <- determine_type(type), do: {key, type}
+           end) do
+      {:ok, {:keyword, {:required, keyed_types}}}
+    end
+  end
+
+  defp determine_type(%TerminalType{name: :struct, bindings: [module: module, fields: fields]}) do
+    with {:ok, field_types} <-
+           maybe_map(fields, fn {key, type} ->
+             with {:ok, field_type} <- determine_type(type), do: {:ok, {key, field_type}}
+           end) do
+      {:ok, {:struct, {module, field_types}}}
+    end
+  end
+
+  for many_typed_type <- [:union, :tuple] do
+    defp determine_type(%TerminalType{
+           name: unquote(many_typed_type),
+           bindings: [elem_types: elem_types]
+         }) do
+      with {:ok, determined_elem_types} <- maybe_map(elem_types, &determine_type/1) do
+        {:ok, {unquote(many_typed_type), determined_elem_types}}
+      end
+    end
+  end
+
+  for typed_type <- [:list, :nonempty_list, :keyword] do
+    defp determine_type(%TerminalType{name: unquote(typed_type), bindings: [type: elem_type]}) do
+      with {:ok, determined_elem_type} <- determine_type(elem_type) do
+        {:ok, {unquote(typed_type), determined_elem_type}}
+      end
+    end
   end
 
   @spec validate(Breakfast.Field.type(), term()) :: [String.t()]

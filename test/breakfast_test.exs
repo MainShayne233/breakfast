@@ -2,6 +2,8 @@ defmodule BreakfastTest do
   use ExUnit.Case
   doctest Breakfast
 
+  alias Breakfast.TestDefinitions
+
   describe "basic validations" do
     setup do
       params = %{
@@ -564,8 +566,8 @@ defmodule BreakfastTest do
           optional(atom()) => binary()
         })
 
-        field(:literal_struct, %Struct{})
-        field(:literal_struct, %Struct{name: binary()})
+        field(:literal_struct, %TestDefinitions.Struct{})
+        field(:literal_struct, %TestDefinitions.Struct{name: binary()})
         field(:literal_empty_tuple, {})
         field(:literal_typed_tuple, {atom(), binary(), integer()})
         field(:union_type, integer() | :never | :infinity)
