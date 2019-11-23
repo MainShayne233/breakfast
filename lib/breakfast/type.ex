@@ -178,7 +178,7 @@ defmodule Breakfast.Type do
     if literal_value == term do
       []
     else
-      ["expected #{literal_value}, got: #{inspect(term)}"]
+      ["expected #{inspect(literal_value)}, got: #{inspect(term)}"]
     end
   end
 
@@ -191,7 +191,7 @@ defmodule Breakfast.Type do
         ["expected a nonempty list but got: #{term}"]
 
       {:is_empty, true} ->
-        ["expected a nonempty list but got an empty list"]
+        ["expected a nonempty list but got []"]
     end
   end
 
@@ -216,14 +216,12 @@ defmodule Breakfast.Type do
     else
       false ->
         [
-          "expected a keyword with values of type: #{inspect(value_type)} but got: #{
-            inspect(term)
-          }"
+          "expected a keyword with values of type #{inspect(value_type)} but got: #{inspect(term)}"
         ]
 
       [_ | _] = invalidations ->
         [
-          "expected a keyword with values of type: #{inspect(value_type)} some values were invalid: #{
+          "expected a keyword with values of type #{inspect(value_type)} but some values were invalid: #{
             inspect(invalidations)
           }"
         ]
@@ -255,7 +253,7 @@ defmodule Breakfast.Type do
       []
     else
       {:struct, _} ->
-        ["expected a %#{struct_module}{} but got #{inspect(term)}"]
+        ["expected a %#{inspect(struct_module)}{} but got #{inspect(term)}"]
 
       {:invalidations, [_ | _] = invalidations} ->
         invalidations
@@ -329,13 +327,13 @@ defmodule Breakfast.Type do
         else
           :error ->
             [
-              "expected a field with #{key} and value of type #{inspect(value_type)} but it wasn't present"
+              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)} but it wasn't present"
               | acc
             ]
 
           [_ | _] = invalidations ->
             [
-              "expected a field with #{key} and value of type #{inspect(value_type)} but the value was invalid: #{
+              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)} but the value was invalid: #{
                 inspect(invalidations)
               }"
               | acc

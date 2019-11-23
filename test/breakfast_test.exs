@@ -677,6 +677,53 @@ defmodule BreakfastTest do
       invalid_params: params
     } do
       result = Breakfast.decode(LotsOfTypes, params)
+
+      assert result.errors == [
+               atom: "expected a atom, got: \"cool\"",
+               binary: "expected a binary, got: :very_cool",
+               boolean: "expected a boolean, got: \"true\"",
+               keyword: "expected a keyword, got: %{name: :cool}",
+               typed_keyword:
+                 "expected a keyword with values of type :binary but some values were invalid: [name: [\"expected a binary, got: 5\"]]",
+               map: "expected a map, got: []",
+               struct: "expected a struct, got: %{name: :cool}",
+               tuple: "expected a tuple, got: [:apples, :oranges]",
+               integer: "expected a integer, got: 0.0",
+               float: "expected a float, got: 9",
+               number: "expected a number, got: :five",
+               neg_integer: "expected a neg_integer, got: 100",
+               non_neg_integer: "expected a non_neg_integer, got: -100",
+               pos_integer: "expected a pos_integer, got: 0",
+               list: "expected a list, got: {}",
+               nonempty_list: "expected a nonempty_list, got: []",
+               typed_list: "expected a atom, got: \"oranges\"",
+               nonempty_typed_list: "expected a nonempty list but got []",
+               mfa: "expected a mfa, got: {Breakfast, :decode, 2.0}",
+               module: "expected a module, got: \"Breakfast\"",
+               literal_atom: "expected :hey, got: :apples",
+               literal_integer: "expected 5, got: 6",
+               literal_integer_in_range: "expected an integer in 5..10 but got: 100",
+               literal_typed_list: "expected a atom, got: \"oranges\"",
+               literal_empty_list: "expected a empty_list, got: [1]",
+               literal_nonempty_list: "expected a nonempty list but got []",
+               literal_typed_nonempty_list: "expected a nonempty list but got []",
+               literal_keyword:
+                 "expected a keyword with values of type {:required, [format: :atom]} but some values were invalid: [format: [\"expected a atom, got: \\\"standard\\\"\"]]",
+               literal_empty_map: "expected a empty_map, got: %{key: :value}",
+               literal_atom_key_map:
+                 "expected a field with key :format and value of type :atom but the value was invalid: [\"expected a atom, got: \\\"standard\\\"\"]",
+               literal_struct:
+                 "expected a %Breakfast.TestDefinitions.Struct{} but got %Breakfast.TestDefinitions.OtherStruct{email: \"\"}",
+               literal_typed_struct:
+                 "expected a field with key :name and value of type :binary but the value was invalid: [\"expected a binary, got: 42\"]",
+               literal_empty_tuple: "expected {}, got: {:apples}",
+               literal_typed_tuple:
+                 "expected {:atom, :binary, :integer}, got: {\"apples\", \"oranges\", 123.56}",
+               union_type:
+                 "expected one of [:integer, {:union, [literal: :never, literal: :infinity]}], got: :always",
+               remote:
+                 "expected one of [literal: :red, literal: :green, literal: :blue], got: :purple"
+             ]
     end
   end
 end
