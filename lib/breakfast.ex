@@ -40,7 +40,7 @@ defmodule Breakfast do
             {:fetch, retval} ->
               raise Breakfast.FetchError,
                 message:
-                  "Expected fetcher for `#{name}` (`#{inspect(fetcher)}`) to return `{:ok, value}` or `:error` but got `#{
+                  "Expected fetcher for `#{name}` (`#{inspect(fetcher)}`) to return `{:ok, value}` or `:error`, got: `#{
                     inspect(retval)
                   }`",
                 field: name,
@@ -50,7 +50,7 @@ defmodule Breakfast do
             {:cast, retval} ->
               raise Breakfast.CastError,
                 message:
-                  "Expected caster for `#{name}` (`#{inspect(caster)}`) to return `{:ok, value}` or `:error` but got `#{
+                  "Expected caster for `#{name}` (`#{inspect(caster)}`) to return `{:ok, value}` or `:error`, got: `#{
                     inspect(retval)
                   }`",
                 field: name,
@@ -60,7 +60,7 @@ defmodule Breakfast do
             {:validate, retval} ->
               raise Breakfast.ValidateError,
                 message:
-                  "Expected validator for `#{name}` (`#{inspect(validator)}`) to return a list but got `#{
+                  "Expected validator for `#{name}` (`#{inspect(validator)}`) to return a list, got: `#{
                     inspect(retval)
                   }`",
                 field: name,

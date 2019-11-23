@@ -170,7 +170,7 @@ defmodule Breakfast.Type do
     if Enum.any?(union_types, &(validate(&1, term) == [])) do
       []
     else
-      ["expected one of #{inspect(union_types)}, got: #{inspect(term)}"]
+      ["expected one of #{display_type({:union, union_types})}, got: #{inspect(term)}"]
     end
   end
 
@@ -188,10 +188,10 @@ defmodule Breakfast.Type do
       validate({:list, type}, term)
     else
       {:is_list, false} ->
-        ["expected a nonempty list but got: #{term}"]
+        ["expected a nonempty list, got: #{term}"]
 
       {:is_empty, true} ->
-        ["expected a nonempty list but got []"]
+        ["expected a nonempty list, got: []"]
     end
   end
 
@@ -207,7 +207,7 @@ defmodule Breakfast.Type do
     end)
   end
 
-  def validate({:list, _type}, term), do: ["expected a list but got: #{inspect(term)}"]
+  def validate({:list, _type}, term), do: ["expected a list, got: #{inspect(term)}"]
 
   def validate({:keyword, value_type}, term) do
     with true <- is_keyword(term),
@@ -216,12 +216,14 @@ defmodule Breakfast.Type do
     else
       false ->
         [
-          "expected a keyword with values of type #{inspect(value_type)} but got: #{inspect(term)}"
+          "expected a keyword with values of type #{display_type(value_type)}, got: #{
+            inspect(term)
+          }"
         ]
 
       [_ | _] = invalidations ->
         [
-          "expected a keyword with values of type #{inspect(value_type)} but some values were invalid: #{
+          "expected a keyword with values of type #{display_type(value_type)}, got: a keyword with invalid values: #{
             inspect(invalidations)
           }"
         ]
@@ -235,7 +237,7 @@ defmodule Breakfast.Type do
       []
     else
       false ->
-        ["expected a map but got: #{inspect(term)}"]
+        ["expected a map, got: #{inspect(term)}"]
 
       [_ | _] = invalidations ->
         invalidations
@@ -253,7 +255,7 @@ defmodule Breakfast.Type do
       []
     else
       {:struct, _} ->
-        ["expected a %#{inspect(struct_module)}{} but got #{inspect(term)}"]
+        ["expected a %#{inspect(struct_module)}{}, got: #{inspect(term)}"]
 
       {:invalidations, [_ | _] = invalidations} ->
         invalidations
@@ -264,7 +266,7 @@ defmodule Breakfast.Type do
     if is_integer(term) and term >= min and term <= max do
       []
     else
-      ["expected an integer in #{min}..#{max} but got: #{term}"]
+      ["expected an integer in #{min}..#{max}, got: #{term}"]
     end
   end
 
@@ -301,7 +303,7 @@ defmodule Breakfast.Type do
         acc
       else
         :error ->
-          [{key, ["expected required value for key but it was not present"]} | acc]
+          [{key, ["expected required value for key, but it was not present"]} | acc]
 
         [_ | _] = invalidations ->
           [{key, invalidations} | acc]
@@ -327,13 +329,13 @@ defmodule Breakfast.Type do
         else
           :error ->
             [
-              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)} but it wasn't present"
+              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)}, but it was not present"
               | acc
             ]
 
           [_ | _] = invalidations ->
             [
-              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)} but the value was invalid: #{
+              "expected a field with key #{inspect(key)} and value of type #{inspect(value_type)}, got: invalid value: #{
                 inspect(invalidations)
               }"
               | acc
@@ -374,6 +376,26 @@ defmodule Breakfast.Type do
       end
     end)
   end
+
+  defp display_type({:required, required_fields}) do
+    displayed_fields =
+      Enum.map(required_fields, fn {key, type} ->
+        "#{key}: #{display_type(type)}"
+      end)
+      |> Enum.join(", ")
+
+    "required(#{displayed_fields})"
+  end
+
+  defp display_type({:union, types}) do
+    types
+    |> Enum.map(&display_type/1)
+    |> Enum.join(" | ")
+  end
+
+  defp display_type({:literal, literal}), do: inspect(literal)
+
+  defp display_type(type), do: inspect(type)
 
   def is_anything(_), do: true
 

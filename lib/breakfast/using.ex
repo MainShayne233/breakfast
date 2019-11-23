@@ -70,7 +70,7 @@ defmodule Breakfast.Using do
     raise Breakfast.CompileError, """
 
 
-      Expected a keywords list as the first argument for `cereal` but got `#{inspect(bad_opts)}`.
+      Expected a keywords list as the first argument for `cereal`, got: `#{inspect(bad_opts)}`.
       Allowed options for `cereal` are `:fetch`, `:cast` and `:validate`:
 
       cereal fetch: :all_caps_key do
