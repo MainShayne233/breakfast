@@ -196,8 +196,8 @@ defmodule BreakfastTest do
 
       assert result.errors == [
                config: [
-                 timezone: "expected a binary, got: :UTC",
-                 sleep_timeout: "expected a integer, got: []"
+                 sleep_timeout: "expected a integer, got: []",
+                 timezone: "expected a binary, got: :UTC"
                ]
              ]
     end
@@ -575,7 +575,7 @@ defmodule BreakfastTest do
     end
 
     setup do
-      params = %{
+      valid_params = %{
         any: "this can be anything",
         term: "this can also be anything",
         atom: :cool,
@@ -619,13 +619,64 @@ defmodule BreakfastTest do
         remote: :green
       }
 
-      %{params: params}
+      invalid_params = %{
+        any: "this will always succeed",
+        term: "this will also always succeed",
+        atom: "cool",
+        binary: :very_cool,
+        boolean: "true",
+        keyword: %{name: :cool},
+        typed_keyword: [name: 5],
+        map: [],
+        struct: %{name: :cool},
+        tuple: [:apples, :oranges],
+        integer: 0.0,
+        float: 9,
+        number: :five,
+        neg_integer: 100,
+        non_neg_integer: -100,
+        pos_integer: 0,
+        list: {},
+        nonempty_list: [],
+        typed_list: [:apples, "oranges"],
+        nonempty_typed_list: [],
+        mfa: {Breakfast, :decode, 2.0},
+        module: "Breakfast",
+        literal_atom: :apples,
+        literal_integer: 6,
+        literal_integer_in_range: 100,
+        literal_typed_list: [:apples, "oranges"],
+        literal_empty_list: [1],
+        literal_nonempty_list: [],
+        literal_typed_nonempty_list: [],
+        literal_keyword: [format: "standard"],
+        literal_empty_map: %{key: :value},
+        literal_atom_key_map: %{format: "standard"},
+        literal_required_option_key_map: %{
+          format: :standard
+        },
+        literal_struct: %Breakfast.TestDefinitions.OtherStruct{email: ""},
+        literal_typed_struct: %Breakfast.TestDefinitions.Struct{name: 42},
+        literal_empty_tuple: {:apples},
+        literal_typed_tuple: {"apples", "oranges", 123.56},
+        union_type: :always,
+        remote: :purple
+      }
+
+      %{valid_params: valid_params, invalid_params: invalid_params}
     end
 
-    test "should be able to decode fields of any supported type", %{params: params} do
+    test "should be able to determine that a value is valid for all supported types", %{
+      valid_params: params
+    } do
       result = Breakfast.decode(LotsOfTypes, params)
-      Enum.each(result.errors, &IO.inspect/1)
       assert result.errors == []
+    end
+
+    test "should be able to determine that a value is invalid for all supported types", %{
+      invalid_params: params
+    } do
+      result = Breakfast.decode(LotsOfTypes, params)
     end
   end
 end

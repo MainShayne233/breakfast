@@ -9,6 +9,10 @@ defmodule Breakfast.TestDefinitions do
     defstruct [:name]
   end
 
+  defmodule OtherStruct do
+    defstruct [:email]
+  end
+
   @type status :: :approved | :pending | :rejected
 
   @type rgb_color :: :red | :green | :blue

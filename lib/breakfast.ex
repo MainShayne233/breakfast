@@ -11,6 +11,7 @@ defmodule Breakfast do
 
   @spec decode(mod :: module(), params :: term()) :: Yogurt.t()
   def decode(mod, params) do
+    yogurt =
     Enum.reduce(
       mod.__cereal__(:fields),
       %Yogurt{struct: struct(mod), params: params},
@@ -68,6 +69,8 @@ defmodule Breakfast do
         end
       end
     )
+
+    %Yogurt{yogurt | errors: Enum.reverse(yogurt.errors)}
   end
 
   @spec unwrap(Yogurt.t()) :: Yogurt.t() | struct()
