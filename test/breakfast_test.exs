@@ -2,8 +2,6 @@ defmodule BreakfastTest do
   use ExUnit.Case
   doctest Breakfast
 
-  alias Breakfast.TestDefinitions
-
   describe "basic validations" do
     setup do
       params = %{
@@ -527,13 +525,14 @@ defmodule BreakfastTest do
     defmodule LotsOfTypes do
       use Breakfast
 
-      cereal do
+      cereal fetch: &Map.fetch/2 do
         field(:any, any())
         field(:term, term())
         field(:atom, atom())
         field(:binary, binary())
         field(:boolean, boolean())
         field(:keyword, keyword())
+
         field(:typed_keyword, keyword(binary()))
         field(:map, map())
         field(:struct, struct())
@@ -552,7 +551,7 @@ defmodule BreakfastTest do
         field(:module, module())
         field(:literal_atom, :hey)
         field(:literal_integer, 5)
-        field(:literal_range, 5..10)
+        field(:literal_integer_in_range, 5..10)
         field(:literal_typed_list, [atom()])
         field(:literal_empty_list, [])
         field(:literal_nonempty_list, [...])
@@ -566,13 +565,67 @@ defmodule BreakfastTest do
           optional(atom()) => binary()
         })
 
-        field(:literal_struct, %TestDefinitions.Struct{})
-        field(:literal_struct, %TestDefinitions.Struct{name: binary()})
+        field(:literal_struct, %Breakfast.TestDefinitions.Struct{})
+        field(:literal_typed_struct, %Breakfast.TestDefinitions.Struct{name: binary()})
         field(:literal_empty_tuple, {})
         field(:literal_typed_tuple, {atom(), binary(), integer()})
         field(:union_type, integer() | :never | :infinity)
         field(:remote, Breakfast.TestDefinitions.rgb_color())
       end
+    end
+
+    setup do
+      params = %{
+        any: "this can be anything",
+        term: "this can also be anything",
+        atom: :cool,
+        binary: "Very cool",
+        boolean: true,
+        keyword: [name: :cool],
+        typed_keyword: [name: "Very cool"],
+        map: %{"data" => %{"id" => 2}},
+        struct: %Breakfast.TestDefinitions.Struct{name: :cool},
+        tuple: {:apples, :oranges},
+        integer: 9,
+        float: 9.9,
+        number: 1_000_000,
+        neg_integer: -100,
+        non_neg_integer: 0,
+        pos_integer: 1,
+        list: [],
+        nonempty_list: [1, 2, 3],
+        typed_list: [:apples, :oranges],
+        nonempty_typed_list: [:apples, :oranges, :bananas],
+        mfa: {Breakfast, :decode, 2},
+        module: Breakfast,
+        literal_atom: :hey,
+        literal_integer: 5,
+        literal_integer_in_range: 7,
+        literal_typed_list: [:apples, :oranges],
+        literal_empty_list: [],
+        literal_nonempty_list: [1],
+        literal_typed_nonempty_list: [:apples, :oranges, :bananas],
+        literal_keyword: [format: :standard],
+        literal_empty_map: %{},
+        literal_atom_key_map: %{format: :standard},
+        literal_required_option_key_map: %{
+          "format" => :standard
+        },
+        literal_struct: %Breakfast.TestDefinitions.Struct{name: :cool},
+        literal_typed_struct: %Breakfast.TestDefinitions.Struct{name: "Very cool"},
+        literal_empty_tuple: {},
+        literal_typed_tuple: {:apples, "oranges", 123},
+        union_type: :never,
+        remote: :green
+      }
+
+      %{params: params}
+    end
+
+    test "should be able to decode fields of any supported type", %{params: params} do
+      result = Breakfast.decode(LotsOfTypes, params)
+      Enum.each(result.errors, &IO.inspect/1)
+      assert result.errors == []
     end
   end
 end

@@ -3,13 +3,27 @@ defmodule Breakfast.Type do
   alias TypeReader.TerminalType
 
   @understood_primative_type_predicate_mappings %{
-    map: :is_map,
-    boolean: :is_boolean,
-    binary: :is_binary,
-    integer: :is_integer,
-    float: :is_float,
-    number: :is_number,
-    atom: :is_atom
+    any: {__MODULE__, :is_anything},
+    term: {__MODULE__, :is_anything},
+    keyword: {__MODULE__, :is_keyword},
+    struct: {__MODULE__, :is_struct},
+    neg_integer: {__MODULE__, :is_neg_integer},
+    non_neg_integer: {__MODULE__, :is_non_neg_integer},
+    pos_integer: {__MODULE__, :is_pos_integer},
+    nonempty_list: {__MODULE__, :is_nonempty_list},
+    mfa: {__MODULE__, :is_mfa},
+    empty_list: {__MODULE__, :is_empty_list},
+    empty_map: {__MODULE__, :is_empty_map},
+    map: {Kernel, :is_map},
+    boolean: {Kernel, :is_boolean},
+    binary: {Kernel, :is_binary},
+    integer: {Kernel, :is_integer},
+    float: {Kernel, :is_float},
+    number: {Kernel, :is_number},
+    atom: {Kernel, :is_atom},
+    tuple: {Kernel, :is_tuple},
+    list: {Kernel, :is_list},
+    module: {Kernel, :is_atom}
   }
 
   @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings) ++
@@ -77,7 +91,8 @@ defmodule Breakfast.Type do
        }) do
     with {:ok, keyed_types} <-
            maybe_map(required_keys, fn {key, type} ->
-             with :error <- determine_type(type), do: {key, type}
+             with {:ok, determined_type} <- determine_type(type),
+                  do: {:ok, {key, determined_type}}
            end) do
       {:ok, {:keyword, {:required, keyed_types}}}
     end
@@ -89,6 +104,12 @@ defmodule Breakfast.Type do
              with {:ok, field_type} <- determine_type(type), do: {:ok, {key, field_type}}
            end) do
       {:ok, {:struct, {module, field_types}}}
+    end
+  end
+
+  defp determine_type(%TerminalType{name: :map, bindings: bindings}) do
+    with {:ok, {required, optional}} <- determine_required_and_optional_field_types(bindings) do
+      {:ok, {:map, {required, optional}}}
     end
   end
 
@@ -108,6 +129,26 @@ defmodule Breakfast.Type do
       with {:ok, determined_elem_type} <- determine_type(elem_type) do
         {:ok, {unquote(typed_type), determined_elem_type}}
       end
+    end
+  end
+
+  defp determine_required_and_optional_field_types(bindings) do
+    maybe_map([:required, :optional], fn require_type ->
+      bindings
+      |> Keyword.get(require_type, [])
+      |> maybe_map(fn {key, value} ->
+        with {:ok, key_type} <- determine_type(key),
+             {:ok, value_type} <- determine_type(value) do
+          {:ok, {key_type, value_type}}
+        end
+      end)
+    end)
+    |> case do
+      {:ok, [required, optional]} ->
+        {:ok, {required, optional}}
+
+      :error ->
+        :error
     end
   end
 
@@ -141,6 +182,19 @@ defmodule Breakfast.Type do
     end
   end
 
+  def validate({:nonempty_list, type}, term) do
+    with {:is_list, true} <- {:is_list, is_list(term)},
+         {:is_empty, false} <- {:is_empty, Enum.empty?(term)} do
+      validate({:list, type}, term)
+    else
+      {:is_list, false} ->
+        ["expected a nonempty list but got: #{term}"]
+
+      {:is_empty, true} ->
+        ["expected a nonempty list but got an empty list"]
+    end
+  end
+
   def validate({:list, type}, term) when is_list(term) do
     Enum.find_value(term, [], fn t ->
       case validate(type, t) do
@@ -155,9 +209,71 @@ defmodule Breakfast.Type do
 
   def validate({:list, _type}, term), do: ["expected a list but got: #{inspect(term)}"]
 
-  for {type, predicate} <- @understood_primative_type_predicate_mappings do
+  def validate({:keyword, value_type}, term) do
+    with true <- is_keyword(term),
+         [] <- validate_values(value_type, term) do
+      []
+    else
+      false ->
+        [
+          "expected a keyword with values of type: #{inspect(value_type)} but got: #{
+            inspect(term)
+          }"
+        ]
+
+      [_ | _] = invalidations ->
+        [
+          "expected a keyword with values of type: #{inspect(value_type)} some values were invalid: #{
+            inspect(invalidations)
+          }"
+        ]
+    end
+  end
+
+  def validate({:map, {required, optional}}, term) do
+    with true <- is_map(term),
+         [] <- validate_required_map_fields(required, term),
+         [] <- validate_optional_map_fields(optional, term) do
+      []
+    else
+      false ->
+        ["expected a map but got: #{inspect(term)}"]
+
+      [_ | _] = invalidations ->
+        invalidations
+    end
+  end
+
+  def validate({:struct, {struct_module, required}}, term) do
+    with {:struct, %^struct_module{}} <- {:struct, term},
+         {:invalidations, []} <-
+           {:invalidations,
+            validate_required_map_fields(
+              Enum.map(required, fn {key, value} -> {{:literal, key}, value} end),
+              Map.from_struct(term)
+            )} do
+      []
+    else
+      {:struct, _} ->
+        ["expected a %#{struct_module}{} but got #{inspect(term)}"]
+
+      {:invalidations, [_ | _] = invalidations} ->
+        invalidations
+    end
+  end
+
+  def validate({:range, {min, max}}, term) do
+    if is_integer(term) and term >= min and term <= max do
+      []
+    else
+      ["expected an integer in #{min}..#{max} but got: #{term}"]
+    end
+  end
+
+  for {type, {predicate_module, predicate_function}} <-
+        @understood_primative_type_predicate_mappings do
     def validate(unquote(type), term) do
-      if apply(Kernel, unquote(predicate), [term]) do
+      if apply(unquote(predicate_module), unquote(predicate_function), [term]) do
         []
       else
         ["expected a #{unquote(type)}, got: #{inspect(term)}"]
@@ -179,4 +295,116 @@ defmodule Breakfast.Type do
       :error -> :error
     end
   end
+
+  defp validate_values({:required, required_fields}, term) do
+    Enum.reduce(required_fields, [], fn {key, value_type}, acc ->
+      with {:ok, value} <- Keyword.fetch(term, key),
+           [] <- validate(value_type, value) do
+        acc
+      else
+        :error ->
+          [{key, ["expected required value for key but it was not present"]} | acc]
+
+        [_ | _] = invalidations ->
+          [{key, invalidations} | acc]
+      end
+    end)
+  end
+
+  defp validate_values(value_type, keyword) do
+    Enum.reduce(keyword, [], fn {key, value}, acc ->
+      case validate(value_type, value) do
+        [] -> acc
+        [_ | _] = invalidations -> [{key, invalidations} | acc]
+      end
+    end)
+  end
+
+  defp validate_required_map_fields(required, term) do
+    Enum.reduce(required, [], fn
+      {{:literal, key}, value_type}, acc ->
+        with {:ok, value} <- Map.fetch(term, key),
+             [] <- validate(value_type, value) do
+          acc
+        else
+          :error ->
+            [
+              "expected a field with #{key} and value of type #{inspect(value_type)} but it wasn't present"
+              | acc
+            ]
+
+          [_ | _] = invalidations ->
+            [
+              "expected a field with #{key} and value of type #{inspect(value_type)} but the value was invalid: #{
+                inspect(invalidations)
+              }"
+              | acc
+            ]
+        end
+
+      {key_type, value_type}, acc ->
+        Enum.any?(term, fn {key, value} ->
+          case {validate(key_type, key), validate(value_type, value)} do
+            {[], []} ->
+              true
+
+            _other ->
+              false
+          end
+        end)
+        |> case do
+          true ->
+            acc
+
+          false ->
+            []
+        end
+    end)
+  end
+
+  defp validate_optional_map_fields(optional, term) do
+    Enum.reduce(optional, [], fn {key, value_type}, acc ->
+      with {:ok, value} <- Map.fetch(term, key),
+           [] <- validate(value_type, value) do
+        acc
+      else
+        :error ->
+          acc
+
+        [_ | _] = invalidations ->
+          [{key, invalidations} | acc]
+      end
+    end)
+  end
+
+  def is_anything(_), do: true
+
+  def is_keyword(term) do
+    is_list(term) and Enum.all?(term, fn {key, _} -> is_atom(key) end)
+  end
+
+  def is_struct(term), do: match?(%_{}, term)
+
+  def is_neg_integer(term), do: is_integer(term) and term < 0
+
+  def is_non_neg_integer(term), do: is_integer(term) and term >= 0
+
+  def is_pos_integer(term), do: is_integer(term) and term > 0
+
+  def is_nonempty_list(term), do: match?([_ | _], term)
+
+  def is_mfa(term) do
+    case term do
+      {module, function, arity}
+      when is_atom(module) and is_atom(function) and is_integer(arity) ->
+        true
+
+      _other ->
+        false
+    end
+  end
+
+  def is_empty_list(term), do: match?([], term)
+
+  def is_empty_map(term), do: term == %{}
 end
