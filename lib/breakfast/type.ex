@@ -3,7 +3,7 @@ defmodule Breakfast.Type do
   alias TypeReader.TerminalType
   alias Breakfast.Field
 
-  @understood_primative_type_predicate_mappings %{
+  @understood_primitive_type_predicate_mappings %{
     any: {__MODULE__, :is_anything},
     term: {__MODULE__, :is_anything},
     keyword: {__MODULE__, :is_keyword},
@@ -27,7 +27,7 @@ defmodule Breakfast.Type do
     module: {Kernel, :is_atom}
   }
 
-  @understood_primative_types Map.keys(@understood_primative_type_predicate_mappings) ++
+  @understood_primitive_types Map.keys(@understood_primitive_type_predicate_mappings) ++
                                 [
                                   :term,
                                   :any,
@@ -80,7 +80,7 @@ defmodule Breakfast.Type do
   end
 
   defp determine_type(%TerminalType{name: type_name, bindings: []})
-       when type_name in @understood_primative_types do
+       when type_name in @understood_primitive_types do
     {:ok, type_name}
   end
 
@@ -272,7 +272,7 @@ defmodule Breakfast.Type do
   end
 
   for {type, {predicate_module, predicate_function}} <-
-        @understood_primative_type_predicate_mappings do
+        @understood_primitive_type_predicate_mappings do
     def validate(unquote(type), term) do
       if apply(unquote(predicate_module), unquote(predicate_function), [term]) do
         []
