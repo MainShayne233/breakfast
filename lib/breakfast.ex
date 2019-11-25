@@ -11,63 +11,66 @@ defmodule Breakfast do
 
   @spec decode(mod :: module(), params :: term()) :: Yogurt.t()
   def decode(mod, params) do
-    Enum.reduce(
-      mod.__cereal__(:fields),
-      %Yogurt{struct: struct(mod), params: params},
-      fn %Field{
-           name: name,
-           fetcher: fetcher,
-           caster: caster,
-           type: type,
-           validator: validator
-         } = field,
-         %Yogurt{errors: errors, struct: struct} = yogurt ->
-        with {:fetch, {:ok, value}} <- {:fetch, fetch(params, field)},
-             {:cast, {:ok, cast_value}} <- {:cast, cast(value, field)},
-             {:validate, []} <- {:validate, validate(cast_value, field)} do
-          %Yogurt{yogurt | struct: %{struct | name => cast_value}}
-        else
-          {:fetch, :error} ->
-            %Yogurt{yogurt | errors: [{name, "value not found"} | errors]}
+    yogurt =
+      Enum.reduce(
+        mod.__cereal__(:fields),
+        %Yogurt{struct: struct(mod), params: params},
+        fn %Field{
+             name: name,
+             fetcher: fetcher,
+             caster: caster,
+             type: type,
+             validator: validator
+           } = field,
+           %Yogurt{errors: errors, struct: struct} = yogurt ->
+          with {:fetch, {:ok, value}} <- {:fetch, fetch(params, field)},
+               {:cast, {:ok, cast_value}} <- {:cast, cast(value, field)},
+               {:validate, []} <- {:validate, validate(cast_value, field)} do
+            %Yogurt{yogurt | struct: %{struct | name => cast_value}}
+          else
+            {:fetch, :error} ->
+              %Yogurt{yogurt | errors: [{name, "value not found"} | errors]}
 
-          {:cast, :error} ->
-            %Yogurt{yogurt | errors: [{name, "cast error"} | errors]}
+            {:cast, :error} ->
+              %Yogurt{yogurt | errors: [{name, "cast error"} | errors]}
 
-          {:validate, validation_errors} when is_list(validation_errors) ->
-            %Yogurt{yogurt | errors: Enum.map(validation_errors, &{name, &1}) ++ errors}
+            {:validate, validation_errors} when is_list(validation_errors) ->
+              %Yogurt{yogurt | errors: Enum.map(validation_errors, &{name, &1}) ++ errors}
 
-          {:fetch, retval} ->
-            raise Breakfast.FetchError,
-              message:
-                "Expected fetcher for `#{name}` (`#{inspect(fetcher)}`) to return `{:ok, value}` or `:error` but got `#{
-                  inspect(retval)
-                }`",
-              field: name,
-              type: type,
-              fetcher: fetcher
+            {:fetch, retval} ->
+              raise Breakfast.FetchError,
+                message:
+                  "Expected fetcher for `#{name}` (`#{inspect(fetcher)}`) to return `{:ok, value}` or `:error`, got: `#{
+                    inspect(retval)
+                  }`",
+                field: name,
+                type: type,
+                fetcher: fetcher
 
-          {:cast, retval} ->
-            raise Breakfast.CastError,
-              message:
-                "Expected caster for `#{name}` (`#{inspect(caster)}`) to return `{:ok, value}` or `:error` but got `#{
-                  inspect(retval)
-                }`",
-              field: name,
-              type: type,
-              caster: caster
+            {:cast, retval} ->
+              raise Breakfast.CastError,
+                message:
+                  "Expected caster for `#{name}` (`#{inspect(caster)}`) to return `{:ok, value}` or `:error`, got: `#{
+                    inspect(retval)
+                  }`",
+                field: name,
+                type: type,
+                caster: caster
 
-          {:validate, retval} ->
-            raise Breakfast.ValidateError,
-              message:
-                "Expected validator for `#{name}` (`#{inspect(validator)}`) to return a list but got `#{
-                  inspect(retval)
-                }`",
-              field: name,
-              type: type,
-              validator: validator
+            {:validate, retval} ->
+              raise Breakfast.ValidateError,
+                message:
+                  "Expected validator for `#{name}` (`#{inspect(validator)}`) to return a list, got: `#{
+                    inspect(retval)
+                  }`",
+                field: name,
+                type: type,
+                validator: validator
+          end
         end
-      end
-    )
+      )
+
+    %Yogurt{yogurt | errors: Enum.reverse(yogurt.errors)}
   end
 
   @spec unwrap(Yogurt.t()) :: Yogurt.t() | struct()

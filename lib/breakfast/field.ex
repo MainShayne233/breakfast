@@ -2,7 +2,7 @@ defmodule Breakfast.Field do
   @moduledoc false
   use TypedStruct
 
-  @type type :: atom() | {:cereal, module()}
+  @type type :: atom() | {:cereal, module()} | {atom(), term()}
 
   typedstruct do
     field :mod, atom()
