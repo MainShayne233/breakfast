@@ -1,6 +1,9 @@
 defmodule BreakfastTest do
   use ExUnit.Case
+  use MarkdownTest
+
   doctest Breakfast
+  test_markdown "README.md"
 
   describe "basic validations" do
     setup do
