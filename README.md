@@ -277,6 +277,97 @@ iex> data = %{
 ```
 <!--- MARKDOWN_TEST_END -->
 
+You can also set the default behavior for any of these steps:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule RGBColor do
+  use Breakfast
+
+  cereal fetch: :fetch_upcase_key, cast: :int_from_string, validate: :valid_rgb_value do
+    field :r, integer()
+    field :g, integer()
+    field :b, integer()
+  end
+
+  def fetch_upcase_key(params, field) do
+    key =
+      field
+      |> to_string()
+      |> String.upcase()
+    
+    Map.fetch(params, key)
+  end
+
+  def int_from_string(value) do
+    with true <- is_binary(value),
+         {int, ""} <- Integer.parse(value) do
+      {:ok, int}
+    else
+      _ ->
+        :error
+    end
+  end
+
+  def valid_rgb_value(value) when value in 0..255, do: []
+
+  def valid_rgb_value(value),
+    do: ["expected an integer between 0 and 255, got: #{inspect(value)}"]
+end
+
+iex> data = %{"R" => "10", "G" => "20", "B" => "30"}
+...> Breakfast.decode(RGBColor, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"R" => "10", "G" => "20", "B" => "30"},
+  struct: %RGBColor{r: 10, g: 20, b: 30}
+}
+
+iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
+...> Breakfast.decode(RGBColor, data)
+%Breakfast.Yogurt{
+  errors: [r: "value not found", g: "cast error", b: "expected an integer between 0 and 255, got: 500"],
+  params: %{"B" => "500", "G" => "Twenty", "r" => "10"},
+  struct: %BreakfastTest.MarkdownTest.README.BlockAtLine318.RGBColor{b: nil, g: nil, r: nil}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+Given this, Breakfast can actually decode any form of data, not just maps:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule SpreadsheetRow do
+  use Breakfast
+
+  @column_indecies %{
+    name: 0,
+    age: 1,
+    email: 2
+  }
+
+  cereal fetch: :fetch_at_list_index do
+    field :name, String.t()
+    field :age, non_neg_integer()
+    field :email, String.t()
+  end
+
+  def fetch_at_list_index(data, field_name) do
+    index = Map.fetch!(@column_indecies, field_name)
+    Enum.fetch(data, index)
+  end
+end
+
+iex> data = ["Sully", 37, "sully@aol.com"]
+...> Breakfast.decode(SpreadsheetRow, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: ["Sully", 37, "sully@aol.com"],
+  struct: %BreakfastTest.MarkdownTest.README.BlockAtLine361.SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
 ## Current State
 
 Development of `v0.1` is currently underyway! Checkout out the [roadmap](./ROADMAP/v0.1.md) to see what's comming/if you are looking to contribute!
