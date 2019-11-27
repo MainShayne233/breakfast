@@ -183,19 +183,6 @@ defmodule Breakfast.Type do
     end
   end
 
-  # def validate({:nonempty_list, type}, term) do
-  #   with {:is_list, true} <- {:is_list, is_list(term)},
-  #        {:is_empty, false} <- {:is_empty, Enum.empty?(term)} do
-  #     validate({:list, type}, term)
-  #   else
-  #     {:is_list, false} ->
-  #       ["expected a nonempty list, got: #{term}"]
-
-  #     {:is_empty, true} ->
-  #       ["expected a nonempty list, got: []"]
-  #   end
-  # end
-
   def validate({:nonempty_list, type}, []) do
     ["expected a nonempty_list of type #{display_type(type)}, got: []"]
   end

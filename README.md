@@ -318,8 +318,8 @@ iex> data = %{"R" => "10", "G" => "20", "B" => "30"}
 ...> Breakfast.decode(RGBColor, data)
 %Breakfast.Yogurt{
   errors: [],
-  params: %{"R" => "10", "G" => "20", "B" => "30"},
-  struct: %RGBColor{r: 10, g: 20, b: 30}
+  params: %{"B" => "30", "G" => "20", "R" => "10"},
+  struct: %RGBColor{b: 30, g: 20, r: 10}
 }
 
 iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
@@ -327,7 +327,7 @@ iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
 %Breakfast.Yogurt{
   errors: [r: "value not found", g: "cast error", b: "expected an integer between 0 and 255, got: 500"],
   params: %{"B" => "500", "G" => "Twenty", "r" => "10"},
-  struct: %BreakfastTest.MarkdownTest.README.BlockAtLine318.RGBColor{b: nil, g: nil, r: nil}
+  struct: %RGBColor{b: nil, g: nil, r: nil}
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -362,7 +362,7 @@ iex> data = ["Sully", 37, "sully@aol.com"]
 %Breakfast.Yogurt{
   errors: [],
   params: ["Sully", 37, "sully@aol.com"],
-  struct: %BreakfastTest.MarkdownTest.README.BlockAtLine361.SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
+  struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
 }
 ```
 <!--- MARKDOWN_TEST_END -->
