@@ -1,6 +1,9 @@
 defmodule BreakfastTest do
   use ExUnit.Case
+  use MarkdownTest
+
   doctest Breakfast
+  test_markdown("README.md")
 
   describe "basic validations" do
     setup do
@@ -314,7 +317,11 @@ defmodule BreakfastTest do
       params = %{params | "tag_groupings" => ["user", "admin"]}
 
       result = Breakfast.decode(ColorData, params)
-      assert result.errors == [tag_groupings: "expected a list, got: \"user\""]
+
+      assert result.errors == [
+               tag_groupings:
+                 "expected a list of type {:list, :binary}, got a list with at least one invalid element: expected a list of type :binary, got: \"user\", expected a list of type :binary, got: \"admin\""
+             ]
     end
 
     test "should support tuples", %{params: params} do
@@ -696,17 +703,19 @@ defmodule BreakfastTest do
                  pos_integer: "expected a pos_integer, got: 0",
                  list: "expected a list, got: {}",
                  nonempty_list: "expected a nonempty_list, got: []",
-                 typed_list: "expected a atom, got: \"oranges\"",
-                 nonempty_typed_list: "expected a nonempty list, got: []",
+                 typed_list:
+                   "expected a list of type :atom, got a list with at least one invalid element: expected a atom, got: \"oranges\"",
+                 nonempty_typed_list: "expected a nonempty_list of type :atom, got: []",
                  mfa: "expected a mfa, got: {Breakfast, :decode, 2.0}",
                  module: "expected a module, got: \"Breakfast\"",
                  literal_atom: "expected :hey, got: :apples",
                  literal_integer: "expected 5, got: 6",
                  literal_integer_in_range: "expected an integer in 5..10, got: 100",
-                 literal_typed_list: "expected a atom, got: \"oranges\"",
+                 literal_typed_list:
+                   "expected a list of type :atom, got a list with at least one invalid element: expected a atom, got: \"oranges\"",
                  literal_empty_list: "expected a empty_list, got: [1]",
-                 literal_nonempty_list: "expected a nonempty list, got: []",
-                 literal_typed_nonempty_list: "expected a nonempty list, got: []",
+                 literal_nonempty_list: "expected a nonempty_list of type :any, got: []",
+                 literal_typed_nonempty_list: "expected a nonempty_list of type :atom, got: []",
                  literal_keyword:
                    "expected a keyword with values of type required(format: :atom), got: a keyword with invalid values: [format: [\"expected a atom, got: \\\"standard\\\"\"]]",
                  literal_empty_map: "expected a empty_map, got: %{key: :value}",

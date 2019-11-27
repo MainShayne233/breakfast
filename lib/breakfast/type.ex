@@ -183,32 +183,26 @@ defmodule Breakfast.Type do
     end
   end
 
-  def validate({:nonempty_list, type}, term) do
+  def validate({:nonempty_list, type}, []) do
+    ["expected a nonempty_list of type #{display_type(type)}, got: []"]
+  end
+
+  def validate({list_type, type}, term) when list_type in [:list, :nonempty_list] do
     with {:is_list, true} <- {:is_list, is_list(term)},
-         {:is_empty, false} <- {:is_empty, Enum.empty?(term)} do
-      validate({:list, type}, term)
+         {:item_errors, []} <- {:item_errors, Enum.flat_map(term, &validate(type, &1))} do
+      []
     else
       {:is_list, false} ->
-        ["expected a nonempty list, got: #{term}"]
+        ["expected a #{list_type} of type #{display_type(type)}, got: #{inspect(term)}"]
 
-      {:is_empty, true} ->
-        ["expected a nonempty list, got: []"]
+      {:item_errors, [_ | _] = errors} ->
+        [
+          "expected a #{list_type} of type #{display_type(type)}, got a #{list_type} with at least one invalid element: #{
+            Enum.join(errors, ", ")
+          }"
+        ]
     end
   end
-
-  def validate({:list, type}, term) when is_list(term) do
-    Enum.find_value(term, [], fn t ->
-      case validate(type, t) do
-        [_ | _] = error ->
-          error
-
-        [] ->
-          false
-      end
-    end)
-  end
-
-  def validate({:list, _type}, term), do: ["expected a list, got: #{inspect(term)}"]
 
   def validate({:keyword, value_type}, term) do
     with true <- is_keyword(term),
