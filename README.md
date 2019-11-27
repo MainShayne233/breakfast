@@ -20,7 +20,7 @@ When dealing with some raw data, you might want to:
 - Have a type spec for your decoded data
 - etc
 
-In Elixir, you might write the following to accomplish those goals:
+In Elixir, you might write the following to accomplish this:
 
 <!--- MARKDOWN_TEST_START -->
 ```elixir
@@ -207,6 +207,75 @@ iex> data = %{
 <!--- MARKDOWN_TEST_END -->
 
 Checkout the [types](./TYPES.md) docs for more on what types Breakfast supports.
+
+## Custom Configuration
+
+When Breakfast is decoding data, it runs through the same 3 steps for each field:
+- `fetch`: Retreieve the field value from the data (i.e. `Map.fetch/2`)
+- `cast`: Map the field value from one value to another, if necessary (i.e. `Integer.parse/1`)
+- `validate`: Check to see if the field value is valid (i.e. `is_binary/1`)
+
+Out of the box, Breakfast will assume the following for each step:
+- `fetch`: The raw data is in the form of a string-keyed map, and the key for the field is the string version of the declared field name
+- `cast`: No casting is necessary
+- `validate`: Ensure that the value matches the field type
+
+However, each of these steps can be customized for any field:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule Settings do
+  use Breakfast
+
+  cereal do
+    field(:name, String.t(), fetch: :fetch_name)
+    field(:timeout, integer(), cast: :int_from_string)
+    field(:volume, integer(), validate: :valid_volume)
+  end
+
+  def fetch_name(params, :name) do
+    Map.fetch(params, "SettingsName")
+  end
+
+  def int_from_string(value) do
+    with true <- is_binary(value),
+         {int, ""} <- Integer.parse(value) do
+      {:ok, int}
+    else
+      _ ->
+        :error
+    end
+  end
+
+  def valid_volume(volume) when volume in 0..100, do: []
+  def valid_volume(volume), do: ["expected an integer in 0..100, got: #{inspect(volume)}"]
+end
+
+iex> data = %{
+...>   "SettingsName" => "Control Pannel",
+...>   "timeout" => "1500",
+...>   "volume" => 8
+...> }
+...> Breakfast.decode(Settings, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"SettingsName" => "Control Pannel", "timeout" => "1500", "volume" => 8},
+  struct: %Settings{name: "Control Pannel", timeout: 1500, volume: 8}
+}
+
+iex> data = %{
+...>   "name" => "Control Pannel",
+...>   "timeout" => 1500,
+...>   "volume" => -100
+...> }
+...> Breakfast.decode(Settings, data)
+%Breakfast.Yogurt{
+  errors: [name: "value not found", timeout: "cast error", volume: "expected an integer in 0..100, got: -100"],
+  params: %{"name" => "Control Pannel", "timeout" => 1500, "volume" => -100},
+  struct: %Settings{name: nil, timeout: nil, volume: nil}
+}
+```
+<!--- MARKDOWN_TEST_END -->
 
 ## Current State
 
