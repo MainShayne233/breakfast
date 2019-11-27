@@ -352,7 +352,7 @@ defmodule SpreadsheetRow do
   end
 
   def fetch_at_list_index(data, field_name) do
-    index = Map.fetch!(@column_indecies, field_name)
+    index = Map.fetch!(@column_indices, field_name)
     Enum.fetch(data, index)
   end
 end
