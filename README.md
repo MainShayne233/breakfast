@@ -71,7 +71,6 @@ With Breakfast, you can get the same (and more) just by describing what your dat
 <!--- MARKDOWN_TEST_START -->
 ```elixir
 defmodule User do
-
   use Breakfast
 
   cereal do
