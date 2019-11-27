@@ -412,7 +412,14 @@ iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "%"}
 ```
 <!--- MARKDOWN_TEST_END -->
 
-For convenience, there is a `Breakfast.decode/1` function that will:
+#### What about `:ok | :error` tuples?
+
+We decided to not use `:ok | :error` tuples as the return type for the following reasons:
+- We wanted to have a consistent type for the return value (it's always a `Yogurt.t()`, no matter what)
+- There's a lot of context to return that you may or may not want to use (i.e. errors, input params, etc)
+- You can still pattern match on any case that you care about handling in your code
+
+However, for convenience, there is a `Breakfast.decode/1` function that will:
 - Return the decoded struct if there were no decoding erros
 - Return the `%Yogurt{}` otherwise
 
