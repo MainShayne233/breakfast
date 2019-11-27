@@ -3,16 +3,21 @@
 [![Build Status](https://secure.travis-ci.org/MainShayne233/breakfast.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/breakfast)
 [![Coverage Status](https://coveralls.io/repos/github/MainShayne233/breakfast/badge.svg?branch=master)](https://coveralls.io/github/MainShayne233/breakfast?branch=master)
 
-Breakfast derives type-validating decoders from simple data specifications.
+Breakfast is a decoder-generator library that:
+- Has a consistent and declarative method for specifying the shape of your data
+- Cuts down on boilerplate decoding code
+- Leans on type specs to determine how to validate data
+- Provides clear error messages for invalid values
+- Can be configured to decode any type of data
 
-In other words: describe what your data looks like, and Breakfast will give you a decoder for it.
+In other words: describe what your data looks like, and Breakfast will generate a decoder for it.
 
 ## Use Case
 
 When dealing with some raw data, you might want to:
 - Decode the data into a struct
-- Validate that the field type are correct
-- Have a type spec
+- Validate that the types are what you expect them to be
+- Have a type spec for your decoded data
 - etc
 
 In Elixir, you might write the following to accomplish those goals:
@@ -61,7 +66,7 @@ iex> data = %{
 ```
 <!--- MARKDOWN_TEST_END -->
 
-With Breakfast, you can get the same (and more) with the following data spec definition:
+With Breakfast, you can get the same (and more) just by describing what your data should look like:
 
 <!--- MARKDOWN_TEST_START -->
 ```elixir
@@ -102,7 +107,106 @@ iex> data = %{
 ```
 <!--- MARKDOWN_TEST_END -->
 
-Here, Breakfast is using the types specified in your data spec to determine how to validate each field.
+## Defining Data
+
+Breakfast's interface for describing the shape of your data is very similar to [Ecto's Schema definitions](https://hexdocs.pm/ecto/Ecto.Schema.html).
+
+The primary difference between Breakfast and Ecto schemas is that Breakfast leans on [Elixir Typespecs](https://hexdocs.pm/elixir/typespecs.html) to declare your data's types.
+
+Here is a simple example of describing data using Breakfast:
+
+<!--- MARKDOWN_TEST_START -->
+``` elixir
+defmodule User do
+  use Breakfast
+
+  cereal do
+    field :name, String.t()
+    field :age, non_neg_integer()
+  end
+end
+
+iex> data = %{
+...>   "name" => "Sean",
+...>   "age" => 45
+...> }
+...> Breakfast.decode(User, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"age" => 45, "name" => "Sean"},
+  struct: %User{age: 45, name: "Sean"}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+## Using Your Types
+
+Beyond documenting your data, the type specs for each field are also used to automatically determine how to validate that field.
+
+In the following example, we can see that a field of type `non_neg_integer()` will not accept a value < 0:
+
+<!--- MARKDOWN_TEST_START -->
+``` elixir
+defmodule User do
+  use Breakfast
+
+  cereal do
+    field :name, String.t()
+    field :age, non_neg_integer()
+  end
+end
+
+iex> data = %{
+...>   "name" => "Sean",
+...>   "age" => -5
+...> }
+...> Breakfast.decode(User, data)
+%Breakfast.Yogurt{
+  errors: [age: "expected a non_neg_integer, got: -5"],
+  params: %{"age" => -5, "name" => "Sean"},
+  struct: %User{age: nil, name: "Sean"}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+Breakfast can even handle more complex types, such as unions:
+
+<!--- MARKDOWN_TEST_START -->
+``` elixir
+defmodule Request do
+  use Breakfast
+
+  cereal do
+    field :payload, map()
+    field :status, :pending | :success | :failed
+  end
+end
+
+iex> data = %{
+...>   "payload" => %{"some" => "data"},
+...>   "status" => :success
+...> }
+...> Breakfast.decode(Request, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"payload" => %{"some" => "data"}, "status" => :success},
+  struct: %Request{payload: %{"some" => "data"}, status: :success}
+}
+
+iex> data = %{
+...>   "payload" => %{"some" => "data"},
+...>   "status" => :waiting
+...> }
+...> Breakfast.decode(Request, data)
+%Breakfast.Yogurt{
+  errors: [status: "expected one of :pending | :success | :failed, got: :waiting"],
+  params: %{"payload" => %{"some" => "data"}, "status" => :waiting},
+  struct: %Request{payload: %{"some" => "data"}, status: nil}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+Checkout the [types](./TYPES.md) docs for more on what types Breakfast supports.
 
 ## Current State
 
