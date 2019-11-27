@@ -339,7 +339,7 @@ Given this, Breakfast can actually decode any form of data, not just maps:
 defmodule SpreadsheetRow do
   use Breakfast
 
-  @column_indecies %{
+  @column_indices %{
     name: 0,
     age: 1,
     email: 2
