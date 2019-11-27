@@ -95,7 +95,7 @@ iex> data = %{
 ...> }
 ...> Breakfast.decode(User, data)
 %Breakfast.Yogurt{
-  errors: [roles: "expected a binary, got: :exec"],
+  errors: [roles: "expected a list of type :binary, got a list with at least one invalid element: expected a binary, got: :exec"],
   params: %{"email" => "john@aol.com", "id" => 1, "roles" => ["admin", :exec]},
   struct: %User{email: "john@aol.com", id: 1, roles: nil}
 }
