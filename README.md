@@ -294,7 +294,7 @@ defmodule RGBColor do
       field
       |> to_string()
       |> String.upcase()
-    
+
     Map.fetch(params, key)
   end
 
@@ -366,6 +366,87 @@ iex> data = ["Sully", 37, "sully@aol.com"]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
+
+## Using the Result
+
+You might be asking, what's this `%Yogurt{}` thing?
+
+A `%Yogurt{}` represents the result of a decoding. It contains three pieces of data:
+- `params`: The original input params that you asked Breakfast to decode
+- `errors`: A list of human-readable string errors that were accumulated when trying to decode the params
+- `struct`: The decoded data that's been casted to the well-defined struct
+
+In your day-to-day programming, you can pattern match on a `%Yogurt{}` for control-flow, where an empty `:errors` list indicates that the decoding was successful:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule MathRequest do
+  use Breakfast
+
+  cereal do
+    field :lhs, number()
+    field :rhs, number()
+    field :operation, :+ | :- | :* | :/, cast: :existing_atom_from_string
+  end
+
+  def existing_atom_from_string(value) do
+    {:ok, String.to_existing_atom(value)}
+  rescue _ in ArgumentError ->
+    :error
+  end
+end
+
+iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "/"}
+...> case Breakfast.decode(MathRequest, request) do
+...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
+...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
+...> end
+{:ok, %MathRequest{lhs: 5.0, rhs: 2, operation: :/}}
+
+iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "%"}
+...> case Breakfast.decode(MathRequest, request) do
+...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
+...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
+...> end
+{:error, [operation: "expected one of :+ | :- | :* | :/, got: :%"]}
+```
+<!--- MARKDOWN_TEST_END -->
+
+For convenience, there is a `Breakfast.decode/1` function that will:
+- Return the decoded struct if there were no decoding erros
+- Return the `%Yogurt{}` otherwise
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule Person do
+  use Breakfast
+
+  cereal do
+    field(:first_name, String.t())
+    field(:last_name, String.t())
+  end
+
+  def greet(raw_user) do
+    result = Breakfast.decode(Person, raw_user)
+
+    case Breakfast.unwrap(result) do
+      %Person{first_name: first_name, last_name: last_name} ->
+        "Hello, #{first_name} #{last_name}!"
+
+      %Breakfast.Yogurt{} ->
+        "I'm not sure how to address you..."
+    end
+  end
+end
+
+iex> Person.greet(%{"first_name" => "Sean", "last_name" => "Neas"})
+"Hello, Sean Neas!"
+
+iex> Person.greet(%{"first_name" => "Sean", "last_name" => nil})
+"I'm not sure how to address you..."
+```
+<!--- MARKDOWN_TEST_END -->
+
 
 ## Current State
 
