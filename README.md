@@ -419,42 +419,6 @@ We decided to not use `:ok | :error` tuples as the return type for the following
 - There's a lot of context to return that you may or may not want to use (i.e. errors, input params, etc)
 - You can still pattern match on any case that you care about handling in your code
 
-However, for convenience, there is a `Breakfast.unwrap/1` function that will:
-- Return the decoded struct if there were no decoding erros
-- Return the `%Yogurt{}` otherwise
-
-<!--- MARKDOWN_TEST_START -->
-```elixir
-defmodule Person do
-  use Breakfast
-
-  cereal do
-    field(:first_name, String.t())
-    field(:last_name, String.t())
-  end
-
-  def greet(raw_user) do
-    result = Breakfast.decode(Person, raw_user)
-
-    case Breakfast.unwrap(result) do
-      %Person{first_name: first_name, last_name: last_name} ->
-        "Hello, #{first_name} #{last_name}!"
-
-      %Breakfast.Yogurt{} ->
-        "I'm not sure how to address you..."
-    end
-  end
-end
-
-iex> Person.greet(%{"first_name" => "Sean", "last_name" => "Neas"})
-"Hello, Sean Neas!"
-
-iex> Person.greet(%{"first_name" => "Sean", "last_name" => nil})
-"I'm not sure how to address you..."
-```
-<!--- MARKDOWN_TEST_END -->
-
-
 ## Current State
 
 Development of `v0.1` is currently underyway! Checkout out the [roadmap](./ROADMAP/v0.1.md) to see what's comming/if you are looking to contribute!

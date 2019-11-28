@@ -73,18 +73,6 @@ defmodule Breakfast do
     %Yogurt{yogurt | errors: Enum.reverse(yogurt.errors)}
   end
 
-  @doc """
-  This function will either:
-  - Return the decoded struct if there were no decoding errors
-  - Return the `Yogurt.t()` if  there were any decoding errors
-
-  This function can be used for control flow, where you can match on the expected struct in the success case,
-  and match on the `Yogurt.t()` in the error case.
-  """
-  @spec unwrap(Yogurt.t()) :: Yogurt.t() | struct()
-  def unwrap(%Yogurt{errors: [], struct: struct}), do: struct
-  def unwrap(%Yogurt{errors: errors} = yogurt) when is_list(errors), do: yogurt
-
   @spec fetch(term(), Field.t()) :: result(term())
   defp fetch(params, field) do
     with :error <- do_fetch(params, field), do: field.default
