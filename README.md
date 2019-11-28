@@ -12,6 +12,17 @@ Breakfast is a decoder-generator library that:
 
 In other words: describe what your data looks like, and Breakfast will generate a decoder for it.
 
+## Table of Contents
+
+- [Use Case](#use-case)
+- [Defining Data](#defining-data)
+- [Using Your Types](#using-your-types)
+- [Custom Configuration](#custom-configuration)
+- [Using the Result](#using-the-result)
+- [Current State](#current-state)
+- [Contributing](#contributing)
+
+
 ## Use Case
 
 When dealing with some raw data, you might want to:
