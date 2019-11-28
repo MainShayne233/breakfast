@@ -17,8 +17,8 @@ In other words: describe what your data looks like, and Breakfast will generate 
 - [Use Case](#use-case)
 - [Defining Data](#defining-data)
 - [Using Your Types](#using-your-types)
-- [Custom Configuration](#custom-configuration)
 - [Using the Result](#using-the-result)
+- [Custom Configuration](#custom-configuration)
 - [Current State](#current-state)
 - [Contributing](#contributing)
 
@@ -218,6 +218,59 @@ iex> data = %{
 
 Checkout the [types](./TYPES.md) docs for more on what types Breakfast supports.
 
+
+## Using the Result
+
+You might be asking, what's this `%Yogurt{}` thing?
+
+A `%Yogurt{}` represents the result of a decoding. It contains three pieces of data:
+- `params`: The original input params that you asked Breakfast to decode
+- `errors`: A list of human-readable string errors that were accumulated when trying to decode the params
+- `struct`: The decoded data that's been casted to the well-defined struct
+
+In your day-to-day programming, you can pattern match on a `%Yogurt{}` for control-flow, where an empty `:errors` list indicates that the decoding was successful:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule MathRequest do
+  use Breakfast
+
+  cereal do
+    field :lhs, number()
+    field :rhs, number()
+    field :operation, :+ | :- | :* | :/, cast: :existing_atom_from_string
+  end
+
+  def existing_atom_from_string(value) do
+    {:ok, String.to_existing_atom(value)}
+  rescue _ in ArgumentError ->
+    :error
+  end
+end
+
+iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "/"}
+...> case Breakfast.decode(MathRequest, request) do
+...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
+...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
+...> end
+{:ok, %MathRequest{lhs: 5.0, rhs: 2, operation: :/}}
+
+iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "%"}
+...> case Breakfast.decode(MathRequest, request) do
+...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
+...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
+...> end
+{:error, [operation: "expected one of :+ | :- | :* | :/, got: :%"]}
+```
+<!--- MARKDOWN_TEST_END -->
+
+#### What about `:ok | :error` tuples?
+
+We decided to not use `:ok | :error` tuples as the return type for the following reasons:
+- We wanted to have a consistent type for the return value (it's always a `Yogurt.t()`, no matter what)
+- There's a lot of context to return that you may or may not want to use (i.e. errors, input params, etc)
+- You can still pattern match on any case that you care about handling in your code
+
 ## Custom Configuration
 
 When Breakfast is decoding data, it runs through the same 3 steps for each field:
@@ -377,58 +430,6 @@ iex> data = ["Sully", 37, "sully@aol.com"]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
-
-## Using the Result
-
-You might be asking, what's this `%Yogurt{}` thing?
-
-A `%Yogurt{}` represents the result of a decoding. It contains three pieces of data:
-- `params`: The original input params that you asked Breakfast to decode
-- `errors`: A list of human-readable string errors that were accumulated when trying to decode the params
-- `struct`: The decoded data that's been casted to the well-defined struct
-
-In your day-to-day programming, you can pattern match on a `%Yogurt{}` for control-flow, where an empty `:errors` list indicates that the decoding was successful:
-
-<!--- MARKDOWN_TEST_START -->
-```elixir
-defmodule MathRequest do
-  use Breakfast
-
-  cereal do
-    field :lhs, number()
-    field :rhs, number()
-    field :operation, :+ | :- | :* | :/, cast: :existing_atom_from_string
-  end
-
-  def existing_atom_from_string(value) do
-    {:ok, String.to_existing_atom(value)}
-  rescue _ in ArgumentError ->
-    :error
-  end
-end
-
-iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "/"}
-...> case Breakfast.decode(MathRequest, request) do
-...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
-...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
-...> end
-{:ok, %MathRequest{lhs: 5.0, rhs: 2, operation: :/}}
-
-iex> request = %{"lhs" => 5.0, "rhs" => 2, "operation" => "%"}
-...> case Breakfast.decode(MathRequest, request) do
-...>   %Breakfast.Yogurt{errors: [], struct: result} -> {:ok, result}
-...>   %Breakfast.Yogurt{errors: errors} -> {:error, errors}
-...> end
-{:error, [operation: "expected one of :+ | :- | :* | :/, got: :%"]}
-```
-<!--- MARKDOWN_TEST_END -->
-
-#### What about `:ok | :error` tuples?
-
-We decided to not use `:ok | :error` tuples as the return type for the following reasons:
-- We wanted to have a consistent type for the return value (it's always a `Yogurt.t()`, no matter what)
-- There's a lot of context to return that you may or may not want to use (i.e. errors, input params, etc)
-- You can still pattern match on any case that you care about handling in your code
 
 ## Current State
 
