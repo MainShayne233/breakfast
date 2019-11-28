@@ -73,10 +73,6 @@ defmodule Breakfast do
     %Yogurt{yogurt | errors: Enum.reverse(yogurt.errors)}
   end
 
-  @spec unwrap(Yogurt.t()) :: Yogurt.t() | struct()
-  def unwrap(%Yogurt{errors: [], struct: struct}), do: struct
-  def unwrap(%Yogurt{errors: errors} = yogurt) when is_list(errors), do: yogurt
-
   @spec fetch(term(), Field.t()) :: result(term())
   defp fetch(params, field) do
     with :error <- do_fetch(params, field), do: field.default
