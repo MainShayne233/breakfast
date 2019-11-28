@@ -419,7 +419,7 @@ We decided to not use `:ok | :error` tuples as the return type for the following
 - There's a lot of context to return that you may or may not want to use (i.e. errors, input params, etc)
 - You can still pattern match on any case that you care about handling in your code
 
-However, for convenience, there is a `Breakfast.decode/1` function that will:
+However, for convenience, there is a `Breakfast.unwrap/1` function that will:
 - Return the decoded struct if there were no decoding erros
 - Return the `%Yogurt{}` otherwise
 
