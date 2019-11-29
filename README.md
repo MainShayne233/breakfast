@@ -19,6 +19,7 @@ In other words: describe what your data looks like, and Breakfast will generate 
 - [Using Your Types](#using-your-types)
 - [Using the Result](#using-the-result)
 - [Custom Configuration](#custom-configuration)
+- [Required Fields and Default Values](#required-fields-and-default-values)
 - [Embedded Cereals](#composing-cereals)
 - [Current State](#current-state)
 - [Contributing](#contributing)
@@ -463,6 +464,55 @@ iex> data = ["Sully", 37, "sully@aol.com"]
   errors: [],
   params: ["Sully", 37, "sully@aol.com"],
   struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+## Required Fields and Default Values
+
+By default, Breakfast considers every field to be a required field. The only way to make a field "optional" is to provide a `:default` value for that field:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule Post do
+  use Breakfast
+  
+  cereal do
+    field :title, String.t()
+    field :content, String.t()
+    field :tags, [String.t()], default: []
+  end
+end
+
+iex> data = %{
+...>  "title" => "Cool Thing I Did",
+...>  "content" => "Thanks for reading!",
+...> }
+...> Breakfast.decode(Post, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"content" => "Thanks for reading!", "title" => "Cool Thing I Did"},
+  struct: %Post{
+    content: "Thanks for reading!",
+    tags: [],
+    title: "Cool Thing I Did"
+  }
+}
+
+iex> data = %{
+...>  "title" => "Cool Thing I Did",
+...>  "content" => "Thanks for reading!",
+...>  "tags" => ["blockchain", "crypto"]
+...> }
+...> Breakfast.decode(Post, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"content" => "Thanks for reading!", "tags" => ["blockchain", "crypto"], "title" => "Cool Thing I Did"},
+  struct: %Post{
+    content: "Thanks for reading!",
+    tags: ["blockchain", "crypto"],
+    title: "Cool Thing I Did"
+  }
 }
 ```
 <!--- MARKDOWN_TEST_END -->
