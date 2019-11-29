@@ -476,7 +476,7 @@ By default, Breakfast considers every field to be a required field. The only way
 ```elixir
 defmodule Post do
   use Breakfast
-  
+
   cereal do
     field :title, String.t()
     field :content, String.t()

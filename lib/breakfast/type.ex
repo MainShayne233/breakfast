@@ -49,23 +49,30 @@ defmodule Breakfast.Type do
   def derive_from_spec({:cereal, _} = cereal), do: cereal
 
   def derive_from_spec(spec) do
-    with {:ok, type} <- TypeReader.type_from_quoted(spec),
+    with {:ok, type} <- safely_read_type(spec),
          {:ok, determined_type} <- determine_type(type) do
       determined_type
     else
-      _ ->
+      {:error, :unknown_failure} ->
         raise Breakfast.TypeError, """
 
 
-          Failed to derive type `#{Macro.to_string(spec)}` from spec. Did you forget to define it?
+          I couldn't understand the following type: #{Macro.to_string(spec)}.
 
-          defmodule MyModule do
-            @type #{Macro.to_string(spec)} :: some_type()
+          Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
+          more information about what typespecs Breakfast can understand.
+        """
 
-            cereal do
-              ...
-            end
-          end
+      {:error, :cyclical_type} ->
+        raise Breakfast.TypeError, """
+
+
+          It looks like the following type is a cyclical type: #{Macro.to_string(spec)}.
+
+          This means that the type doesn't terminate, so I can't really do much with it.
+
+          Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
+          more information about what typespecs Breakfast can understand.
         """
     end
   end
@@ -395,6 +402,23 @@ defmodule Breakfast.Type do
   defp display_type({:literal, literal}), do: inspect(literal)
 
   defp display_type(type), do: inspect(type)
+
+  @spec safely_read_type(Macro.t()) ::
+          {:ok, TerminalType.t()} | {:error, :cyclical_type | :unknown_failure}
+  defp safely_read_type(spec) do
+    with {:ok, %TerminalType{} = type} <- TypeReader.type_from_quoted(spec) do
+      {:ok, type}
+    else
+      {:ok, %TypeReader.CyclicalType{}} ->
+        {:error, :cyclical_type}
+
+      :error ->
+        {:error, :unknown_failure}
+    end
+  rescue
+    _ ->
+      {:error, :unknown_failure}
+  end
 
   @spec is_anything(term()) :: true
   def is_anything(_), do: true

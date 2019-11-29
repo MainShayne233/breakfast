@@ -18,5 +18,8 @@ if Mix.env() == :test do
 
     @type rgb_color :: :red | :green | :blue
     @type cmyk_color :: :cyan | :magenta | :yellow | :black
+
+    @type cycle_a :: cycle_b()
+    @type cycle_b :: cycle_a()
   end
 end

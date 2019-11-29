@@ -4,6 +4,7 @@ defmodule BreakfastTest do
 
   doctest Breakfast
   test_markdown("README.md")
+  test_markdown("TYPES.md")
 
   describe "basic validations" do
     setup do
@@ -335,21 +336,6 @@ defmodule BreakfastTest do
   end
 
   describe "errors" do
-    test "should raise error when type cannot be determined" do
-      %Breakfast.TypeError{message: message} =
-        assert_raise Breakfast.TypeError, fn ->
-          defmodule WillRaise do
-            use Breakfast
-
-            cereal do
-              field :crazy, DoesNotExist.t()
-            end
-          end
-        end
-
-      assert "\n\n  Failed to derive type `DoesNotExist.t()` from spec." <> _ = message
-    end
-
     test "should raise a compile-time error when `type` is missing an option" do
       %Breakfast.CompileError{message: message} =
         assert_raise Breakfast.CompileError, fn ->
@@ -439,6 +425,57 @@ defmodule BreakfastTest do
 
       assert "\n\n  Invalid options given to `cereal`: :invalid_opt_1, :invalid_opt_2." <> _ =
                message
+    end
+
+    test "should throw a compile error if invalid options were passed to a field" do
+      error =
+        assert_raise(Breakfast.CompileError, fn ->
+          defmodule InvalidOptions do
+            use Breakfast
+
+            cereal do
+              field :email, String.t(), default_value: ""
+            end
+          end
+        end)
+
+      assert error.message == """
+
+
+               Invalid options given to `field`: :default_value.
+               Allowed options are :fetch, :cast, :validate, :default.
+             """
+    end
+
+    test "should throw a helpful error if a type could not be understood" do
+      error =
+        assert_raise(Breakfast.TypeError, fn ->
+          defmodule BadType do
+            use Breakfast
+
+            cereal do
+              field :vehicle, vehicle()
+            end
+          end
+        end)
+
+      assert error.message =~ "I couldn't understand the following type: vehicle()"
+    end
+
+    test "should throw a more specific error for a cyclical type" do
+      error =
+        assert_raise(Breakfast.TypeError, fn ->
+          defmodule Cycle do
+            use Breakfast
+
+            cereal do
+              field :value, Breakfast.TestDefinitions.cycle_a()
+            end
+          end
+        end)
+
+      assert error.message =~
+               "It looks like the following type is a cyclical type: Breakfast.TestDefinitions.cycle_a()"
     end
   end
 
@@ -731,28 +768,6 @@ defmodule BreakfastTest do
                  union_type: "expected one of :integer | :never | :infinity, got: :always",
                  remote: "expected one of :red | :green | :blue, got: :purple"
                ]
-    end
-  end
-
-  describe "field options" do
-    test "should throw a compile error if invalid options were passed to a field" do
-      error =
-        assert_raise(Breakfast.CompileError, fn ->
-          defmodule InvalidOptions do
-            use Breakfast
-
-            cereal do
-              field :email, String.t(), default_value: ""
-            end
-          end
-        end)
-
-      assert error.message == """
-
-
-               Invalid options given to `field`: :default_value.
-               Allowed options are :fetch, :cast, :validate, :default.
-             """
     end
   end
 end
