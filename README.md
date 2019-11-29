@@ -15,7 +15,7 @@ In other words: describe what your data looks like, and Breakfast will generate 
 ## Table of Contents
 
 - [Use Case](#use-case)
-- [Defining Data](#defining-data)
+- [Quick Start](#quick-start)
 - [Using Your Types](#using-your-types)
 - [Using the Result](#using-the-result)
 - [Custom Configuration](#custom-configuration)
@@ -117,37 +117,73 @@ iex> data = %{
 ```
 <!--- MARKDOWN_TEST_END -->
 
-## Defining Data
+## Quick Start
+
+Let's say you're trying to decode some data of the following shape:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+%{
+  "email" => "leo@aol.com",
+  "age" => 67,
+  "roles" => ["exec", "admin"]
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+First, we need to define a decoder that describes the shape of this data.
 
 Breakfast's interface for describing the shape of your data is very similar to [Ecto's Schema definitions](https://hexdocs.pm/ecto/Ecto.Schema.html).
 
 The primary difference between Breakfast and Ecto schemas is that Breakfast leans on [Elixir Typespecs](https://hexdocs.pm/elixir/typespecs.html) to declare your data's types.
 
-Here is a simple example of describing data using Breakfast:
+Here is a simple example of describing the shape of the above data with Breakfast:
 
 <!--- MARKDOWN_TEST_START -->
-``` elixir
+```elixir
 defmodule User do
   use Breakfast
 
   cereal do
-    field :name, String.t()
+    field :email, String.t()
     field :age, non_neg_integer()
+    field :roles, [String.t()]
+  end
+end
+```
+<!--- MARKDOWN_TEST_END -->
+
+This decoder module is what Breakfast will use to decode and validate your data.
+
+Once it's defined, you can pass this module along with the raw params to `Breakfast.decode/2`:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule User do
+  use Breakfast
+
+  cereal do
+    field :email, String.t()
+    field :age, non_neg_integer()
+    field :roles, [String.t()]
   end
 end
 
 iex> data = %{
-...>   "name" => "Sean",
-...>   "age" => 45
+...>   "email" => "leo@aol.com",
+...>   "age" => 67,
+...>   "roles" => ["exec", "admin"]
 ...> }
 ...> Breakfast.decode(User, data)
 %Breakfast.Yogurt{
   errors: [],
-  params: %{"age" => 45, "name" => "Sean"},
-  struct: %User{age: 45, name: "Sean"}
+  params: %{"age" => 67, "email" => "leo@aol.com", "roles" => ["exec", "admin"]},
+  struct: %User{age: 67, email: "leo@aol.com", roles: ["exec", "admin"]}
 }
 ```
 <!--- MARKDOWN_TEST_END -->
+
+That's it! Breakfast can decode basic data with little configuration, but can be told to do a lot more.
 
 ## Using Your Types
 
@@ -217,7 +253,6 @@ iex> data = %{
 <!--- MARKDOWN_TEST_END -->
 
 Checkout the [types](./TYPES.md) docs for more on what types Breakfast supports.
-
 
 ## Using the Result
 

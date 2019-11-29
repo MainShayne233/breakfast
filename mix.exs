@@ -36,7 +36,7 @@ defmodule Breakfast.MixProject do
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.0", only: [:dev, :test], runtime: false},
-      {:markdown_test, "0.1.0", only: :test}
+      {:markdown_test, "0.1.1", only: :test}
     ]
   end
 end
