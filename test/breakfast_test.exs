@@ -733,4 +733,26 @@ defmodule BreakfastTest do
                ]
     end
   end
+
+  describe "field options" do
+    test "should throw a compile error if invalid options were passed to a field" do
+      error =
+        assert_raise(Breakfast.CompileError, fn ->
+          defmodule InvalidOptions do
+            use Breakfast
+
+            cereal do
+              field :email, String.t(), default_value: ""
+            end
+          end
+        end)
+
+      assert error.message == """
+
+
+               Invalid options given to `field`: :default_value.
+               Allowed options are :fetch, :cast, :validate, :default.
+             """
+    end
+  end
 end
