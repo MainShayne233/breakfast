@@ -19,6 +19,7 @@ In other words: describe what your data looks like, and Breakfast will generate 
 - [Using Your Types](#using-your-types)
 - [Using the Result](#using-the-result)
 - [Custom Configuration](#custom-configuration)
+- [Embedded Cereals](#composing-cereals)
 - [Current State](#current-state)
 - [Contributing](#contributing)
 
@@ -462,6 +463,72 @@ iex> data = ["Sully", 37, "sully@aol.com"]
   errors: [],
   params: ["Sully", 37, "sully@aol.com"],
   struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
+}
+```
+<!--- MARKDOWN_TEST_END -->
+
+## Embedded Cereals
+
+Breakfast allows you to use decoders within each other to describe the shape of nested data.
+
+Here, the `Config` decoder is used as the type for the `User.config` field:
+
+<!--- MARKDOWN_TEST_START -->
+```elixir
+defmodule Player do
+
+  defmodule Config do
+    use Breakfast
+
+    cereal do
+      field :timezone, String.t()
+      field :sleep_timeout, non_neg_integer()
+    end
+  end
+
+  use Breakfast
+
+  cereal do
+    field :name, String.t()
+    field :score, integer()
+    field :config, {:cereal, Config}
+  end
+end
+
+iex> data = %{
+...>   "name" => "Leo",
+...>   "score" => 1600,
+...>   "config" => %{
+...>     "timezone" => "EST",
+...>     "sleep_timeout" => 5000
+...>   }
+...> }
+...> Breakfast.decode(Player, data)
+%Breakfast.Yogurt{
+  errors: [],
+  params: %{"config" => %{"sleep_timeout" => 5000, "timezone" => "EST"}, "name" => "Leo", "score" => 1600},
+  struct: %Player{
+    name: "Leo",
+    score: 1600,
+    config: %Player.Config{
+      sleep_timeout: 5000, timezone: "EST"
+    }
+  }
+}
+
+iex> data = %{
+...>   "name" => "Leo",
+...>   "score" => 1600,
+...>   "config" => %{
+...>     "timezone" => "EST",
+...>     "sleep_timeout" => -5000
+...>   }
+...> }
+...> Breakfast.decode(Player, data)
+%Breakfast.Yogurt{
+  errors: [config: [sleep_timeout: "expected a non_neg_integer, got: -5000"]],
+  params: %{"config" => %{"sleep_timeout" => -5000, "timezone" => "EST"}, "name" => "Leo", "score" => 1600},
+  struct: %Player{config: nil, name: "Leo", score: 1600}
 }
 ```
 <!--- MARKDOWN_TEST_END -->
