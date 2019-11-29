@@ -53,29 +53,39 @@ defmodule Breakfast.Type do
          {:ok, determined_type} <- determine_type(type) do
       determined_type
     else
-      {:error, :unknown_failure} ->
-        raise Breakfast.TypeError, """
-
-
-          I couldn't understand the following type: #{Macro.to_string(spec)}.
-
-          Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
-          more information about what typespecs Breakfast can understand.
-        """
-
-      {:error, :cyclical_type} ->
-        raise Breakfast.TypeError, """
-
-
-          It looks like the following type is a cyclical type: #{Macro.to_string(spec)}.
-
-          This means that the type doesn't terminate, so I can't really do much with it.
-
-          Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
-          more information about what typespecs Breakfast can understand.
-        """
+      error ->
+        handle_derive_from_spec(error, spec)
     end
   end
+
+  @spec handle_derive_from_spec({:error, :cyclical_type | :unknown_failure} | :error, Macro.t()) ::
+          no_return()
+  defp handle_derive_from_spec({:error, :cyclical_type}, spec),
+    do:
+      raise(Breakfast.TypeError, """
+
+
+        It looks like the following type is a cyclical type: #{Macro.to_string(spec)}.
+
+        This means that the type doesn't terminate, so I can't really do much with it.
+
+        Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
+        more information about what typespecs Breakfast can understand.
+      """)
+
+  defp handle_derive_from_spec({:error, :unknown_failure}, spec),
+    do:
+      raise(Breakfast.TypeError, """
+
+
+        I couldn't understand the following type: #{Macro.to_string(spec)}.
+
+        Check out github.com/MainShayne233/breakfast/blob/master/TYPES.md for
+        more information about what typespecs Breakfast can understand.
+      """)
+
+  defp handle_derive_from_spec(:error, spec),
+    do: handle_derive_from_spec({:error, :unknown_failure}, spec)
 
   @spec determine_type(%TerminalType{}) :: Breakfast.result(Field.type())
   defp determine_type(%TerminalType{name: :literal, bindings: [value: min..max]}) do
@@ -403,12 +413,14 @@ defmodule Breakfast.Type do
 
   defp display_type(type), do: inspect(type)
 
+  # this gets rescued becasue errors that occur within TypeReader are very cryptic and not helpful
   @spec safely_read_type(Macro.t()) ::
-          {:ok, TerminalType.t()} | {:error, :cyclical_type | :unknown_failure}
+          {:ok, %TerminalType{}} | {:error, :cyclical_type | :unknown_failure}
   defp safely_read_type(spec) do
-    with {:ok, %TerminalType{} = type} <- TypeReader.type_from_quoted(spec) do
-      {:ok, type}
-    else
+    case TypeReader.type_from_quoted(spec) do
+      {:ok, %TerminalType{} = type} ->
+        {:ok, type}
+
       {:ok, %TypeReader.CyclicalType{}} ->
         {:error, :cyclical_type}
 

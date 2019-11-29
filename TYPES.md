@@ -55,6 +55,8 @@ Proceed with caution when using remote types, because they might resolve to some
 
 In other words, setting a field's type to `Enum.t()` is no better than saying it's type is `any()`.
 
+### Note about user-defined types
+
 Breakfast should also be able to handle most [User-Defined Types](https://hexdocs.pm/elixir/typespecs.html#user-defined-types), which are just remote types that you defined yourself. Breakfast can only understand a user-defined type if the module where that type was defined was compiled before Breakfast tries to understand it.
 
 If defined like so, Breakfast will fail to understand the type `color()` given the compile time constraint:
@@ -71,27 +73,10 @@ defmodule Texture do
 end
 ```
 
-One way to ensure that the user-defined type will be available for Breakfast's use is to define the type is defined in its own module:
+The best way to ensure that Elixir will compile a typespec in time for Breakfast to start using it is to define the type
+in an external module, and then `require` that external module in your decoder module:
 
-<!--- MARKDOWN_TEST_START -->
-```elixir
-defmodule Texture do
-  use Breakfast
-
-  defmodule Types do
-    @type color :: :red | :green | :blue
-  end
-
-  cereal do
-    field :color, Types.color()
-  end
-end
-```
-<!--- MARKDOWN_TEST_END -->
-
-If using a type from a module outside of your decoder module, you can `require` the type module to ensure it's compiled in time:
-
-<!--- MARKDOWN_TEST_START -->
+<!--- This cannot be tested because of the way Elixir handles type specs defined in runtime-compiled modules --->
 ```elixir
 # in lib/types.ex
 defmodule Types do
@@ -110,8 +95,6 @@ defmodule Texture do
   end
 end
 ```
-<!--- MARKDOWN_TEST_END -->
-
 
 ### Note about cyclical types
 
