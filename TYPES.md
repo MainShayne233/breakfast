@@ -49,6 +49,12 @@ Elixir has many built-in remote types, like `String.t()`. Most of these remote t
 
 If a built-in remote type can be resolved to a type Breakfast can understand, it can handle that remote type no problem. Breakfast can handle many built-in remote types, but there are a few more complex ones that it cannot. Improving this type support would be a great contribution! :-)
 
+Proceed with caution when using remote types, because they might resolve to something you don't expect. For example, as of Elixir 1.9, if you were to fully resolve the `Enum.t()` type to it's most terminal type, you get the following resolve chain:
+
+`Enum.t()` -> `Enumerable.t()` -> `term()` -> `any()`
+
+In other words, setting a field's type to `Enum.t()` is no better than saying it's type is `any()`.
+
 Breakfast should also be able to handle most [User-Defined Types](https://hexdocs.pm/elixir/typespecs.html#user-defined-types), which are just remote types that you defined yourself. Breakfast can only understand a user-defined type if the module where that type was defined was compiled before Breakfast tries to understand it.
 
 If defined like so, Breakfast will fail to understand the type `color()` given the compile time constraint:
