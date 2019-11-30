@@ -4,6 +4,7 @@
 
 [![Build Status](https://secure.travis-ci.org/MainShayne233/breakfast.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/breakfast)
 [![Coverage Status](https://coveralls.io/repos/github/MainShayne233/breakfast/badge.svg?branch=master)](https://coveralls.io/github/MainShayne233/breakfast?branch=master)
+[![Hex Version](http://img.shields.io/hexpm/v/breakfast.svg?style=flat)](https://hex.pm/packages/breakfast)
 
 Breakfast is a decoder-generator library that:
 - Has a consistent and declarative method for specifying the shape of your data
