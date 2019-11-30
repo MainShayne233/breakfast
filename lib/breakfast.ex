@@ -11,6 +11,36 @@ defmodule Breakfast do
     end
   end
 
+  @doc """
+  The function to call when you want to decode some data.
+
+  It requires that you've defined your decoder module and takes the module name as a parameter.
+
+  See the [quick start](#module-quick-start) guide for more on defining and user decoder modules.
+
+  ## Examples
+
+      iex> defmodule Customer do
+      ...>   use Breakfast
+      ...>
+      ...>   cereal do
+      ...>     field :id, non_neg_integer()
+      ...>     field :email, String.t()
+      ...>   end
+      ...> end
+      ...>
+      ...> data = %{
+      ...>   "id" => 5,
+      ...>   "email" => "leo@aol.com"
+      ...> }
+      ...>
+      ...> Breakfast.decode(Customer, data)
+      %Breakfast.Yogurt{
+        errors: [],
+        params: %{"email" => "leo@aol.com", "id" => 5},
+        struct: %Customer{email: "leo@aol.com", id: 5}
+      }
+  """
   @spec decode(mod :: module(), params :: term()) :: Yogurt.t()
   def decode(mod, params) do
     yogurt =
