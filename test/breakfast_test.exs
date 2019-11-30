@@ -2,7 +2,7 @@ defmodule BreakfastTest do
   use ExUnit.Case
   use MarkdownTest
 
-  doctest Breakfast, except: [:moduledoc]
+  doctest Breakfast, except: [{:decode, 2}, :moduledoc]
   test_markdown("README.md")
   test_markdown("TYPES.md")
 
