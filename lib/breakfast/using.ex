@@ -2,6 +2,8 @@ defmodule Breakfast.Using do
   @moduledoc false
   alias Breakfast.{Field, Type}
 
+  @typep result(t) :: Breakfast.Util.result(t)
+
   defmacro __using__([]) do
     quote do
       import Breakfast.Using, only: [cereal: 1, cereal: 2]
@@ -124,7 +126,7 @@ defmodule Breakfast.Using do
     }
   end
 
-  @spec set_default_value(Field.t(), map(), Breakfast.result(term())) :: Field.t()
+  @spec set_default_value(Field.t(), map(), result(term())) :: Field.t()
   def set_default_value(
         %Field{name: name, type: type} = field,
         custom_default_values,

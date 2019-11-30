@@ -3,6 +3,8 @@ defmodule Breakfast.Type do
   alias TypeReader.TerminalType
   alias Breakfast.Field
 
+  @typep result(t) :: Breakfast.Util.result(t)
+
   @understood_primitive_type_predicate_mappings %{
     any: {__MODULE__, :is_anything},
     term: {__MODULE__, :is_anything},
@@ -87,7 +89,7 @@ defmodule Breakfast.Type do
   defp handle_derive_from_spec(:error, spec),
     do: handle_derive_from_spec({:error, :unknown_failure}, spec)
 
-  @spec determine_type(%TerminalType{}) :: Breakfast.result(Field.type())
+  @spec determine_type(%TerminalType{}) :: result(Field.type())
   defp determine_type(%TerminalType{name: :literal, bindings: [value: min..max]}) do
     {:ok, {:range, {min, max}}}
   end
@@ -293,8 +295,8 @@ defmodule Breakfast.Type do
     end
   end
 
-  @spec maybe_map(Enumerable.t(), (term() -> Breakfast.result(term()))) ::
-          Breakfast.result([term()])
+  @spec maybe_map(Enumerable.t(), (term() -> result(term()))) ::
+          result([term()])
   defp maybe_map(enum, map) do
     Enum.reduce_while(enum, [], fn value, acc ->
       case map.(value) do

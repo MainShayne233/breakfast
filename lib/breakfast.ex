@@ -3,7 +3,7 @@ defmodule Breakfast do
 
   alias Breakfast.{Field, Yogurt}
 
-  @type result(t) :: {:ok, t} | :error
+  @typep result(t) :: Breakfast.Util.result(t)
 
   defmacro __using__(opts) do
     quote do
