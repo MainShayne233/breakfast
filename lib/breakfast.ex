@@ -1,4 +1,6 @@
 defmodule Breakfast do
+  @moduledoc File.read!("README.md")
+
   alias Breakfast.{Field, Yogurt}
 
   @type result(t) :: {:ok, t} | :error
