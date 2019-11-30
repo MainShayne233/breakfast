@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Breakfast logo" width="350" src="https://github.com/MainShayne233/breakfast/raw/ex_docs/logo.png">
+  <img alt="Breakfast logo" width="350" src="https://github.com/MainShayne233/breakfast/raw/ex_docs/logo-black.png">
 </p>
 
 [![Build Status](https://secure.travis-ci.org/MainShayne233/breakfast.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/breakfast)

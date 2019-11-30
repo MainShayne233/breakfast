@@ -21,7 +21,7 @@ defmodule Breakfast.MixProject do
       homepage_url: "https://github.com/MainShayne233/breakfast",
       docs: [
         main: "Breakfast",
-        logo: "logo.png",
+        logo: "logo-white.png",
         extras: ["README.md", "TYPES.md"]
       ]
     ]
