@@ -15,6 +15,14 @@ defmodule Breakfast.MixProject do
         "coveralls.detail": :test,
         "coveralls.post": :test,
         "coveralls.html": :test
+      ],
+      name: "Breakfast",
+      source_url: "https://github.com/MainShayne233/breakfast",
+      homepage_url: "https://github.com/MainShayne233/breakfast",
+      docs: [
+        main: "Breakfast",
+        logo: "path/to/logo.png",
+        extras: ["README.md", "TYPES.md"]
       ]
     ]
   end
@@ -37,7 +45,7 @@ defmodule Breakfast.MixProject do
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.0", only: [:dev, :test], runtime: false},
       {:markdown_test, "0.1.1", only: :test},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.21", only: :dev, runtime: false}
     ]
   end
 end
