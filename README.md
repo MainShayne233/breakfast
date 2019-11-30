@@ -1,4 +1,6 @@
-# Breakfast
+<p align="center">
+  <img alt="Breakfast logo" width="350" src="logo.png">
+</p>
 
 [![Build Status](https://secure.travis-ci.org/MainShayne233/breakfast.svg?branch=master "Build Status")](http://travis-ci.org/MainShayne233/breakfast)
 [![Coverage Status](https://coveralls.io/repos/github/MainShayne233/breakfast/badge.svg?branch=master)](https://coveralls.io/github/MainShayne233/breakfast?branch=master)
