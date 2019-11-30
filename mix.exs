@@ -8,6 +8,8 @@ defmodule Breakfast.MixProject do
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      description: description(),
+      package: package(),
       dialyzer: dialyzer(),
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
@@ -29,6 +31,16 @@ defmodule Breakfast.MixProject do
 
   def application do
     []
+  end
+
+  defp description, do: "An Elixir decoder-generator library that leans on type specs"
+
+  defp package do
+    [
+      name: "breakfast",
+      licenses: ["Apache-2.0"],
+      links: %{"GitHub" => "https://github.com/MainShayne233/breakfast"}
+    ]
   end
 
   defp dialyzer do
