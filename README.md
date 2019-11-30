@@ -9,7 +9,7 @@
 Breakfast is a decoder-generator library that:
 - Has a consistent and declarative method for specifying the shape of your data
 - Cuts down on boilerplate decoding code
-- Leans on type specs to determine how to validate data
+- Leans on typespecs to determine how to validate data
 - Provides clear error messages for invalid values
 - Can be configured to decode any type of data
 
@@ -33,7 +33,7 @@ In other words: describe what your data looks like, and Breakfast will generate 
 When dealing with some raw data, you might want to:
 - Decode the data into a struct
 - Validate that the types are what you expect them to be
-- Have a type spec for your decoded data
+- Have a typespec for your decoded data
 - etc
 
 In Elixir, you might write the following to accomplish this:
@@ -208,7 +208,7 @@ That's it! Breakfast can decode basic data with little configuration, but can be
 
 ## Using Your Types
 
-Beyond documenting your data, the type specs for each field are also used to automatically determine how to validate that field.
+Beyond documenting your data, the typespecs for each field are also used to automatically determine how to validate that field.
 
 In the following example, we can see that a field of type `non_neg_integer()` will not accept a value < 0:
 
@@ -330,7 +330,7 @@ We decided to not use `:ok | :error` tuples as the return type for the following
 ## Custom Configuration
 
 When Breakfast is decoding data, it runs through the same 3 steps for each field:
-- `fetch`: Retreieve the field value from the data (i.e. `Map.fetch/2`)
+- `fetch`: Retrieve the field value from the data (i.e. `Map.fetch/2`)
 - `cast`: Map the field value from one value to another, if necessary (i.e. `Integer.parse/1`)
 - `validate`: Check to see if the field value is valid (i.e. `is_binary/1`)
 
@@ -396,7 +396,7 @@ iex> data = %{
 ```
 <!--- MARKDOWN_TEST_END -->
 
-You can also set the default behavior for any of these steps:
+You can also set the default behaviour for any of these steps:
 
 <!--- MARKDOWN_TEST_START -->
 ```elixir
@@ -606,7 +606,7 @@ iex> data = %{
 
 Breakfast `0.1` has been released! Further `v0.1.x` versions will include bug fixes, enhancements, etc.
 
-Breakfast `0.2` development will include all new major features and breaking changes. Check out out the [roadmap](./ROADMAP/v0.2.md) to see what's comming/if you are looking to contribute!
+Breakfast `0.2` development will include all new major features and breaking changes. Check out out the [roadmap](./ROADMAP/v0.2.md) to see what's coming/if you are looking to contribute!
 
 ## Contributing
 

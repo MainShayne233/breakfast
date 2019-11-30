@@ -75,7 +75,7 @@ end
 The best way to ensure that Elixir will compile a typespec in time for Breakfast to start using it is to define the type
 in an external module, and then `require` that external module in your decoder module:
 
-<!--- This cannot be tested because of the way Elixir handles type specs defined in runtime-compiled modules --->
+<!--- This cannot be tested because of the way Elixir handles typespecs defined in runtime-compiled modules --->
 ```elixir
 # in lib/types.ex
 defmodule Types do
@@ -97,7 +97,7 @@ end
 
 ### Note about cyclical types
 
-Elixir allows you to define cyclical types (types that refer to theirselves recursively). Here is an example:
+Elixir allows you to define cyclical types (types that refer to themselves recursively). Here is an example:
 
 <!--- MARKDOWN_TEST_START -->
 ```elixir

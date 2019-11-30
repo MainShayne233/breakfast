@@ -33,7 +33,7 @@ defmodule Breakfast.MixProject do
     []
   end
 
-  defp description, do: "An Elixir decoder-generator library that leans on type specs"
+  defp description, do: "An Elixir decoder-generator library that leans on typespecs"
 
   defp package do
     [
