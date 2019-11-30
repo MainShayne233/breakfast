@@ -587,7 +587,9 @@ iex> data = %{
 
 ## Current State
 
-Development of `v0.1` is currently underyway! Checkout out the [roadmap](./ROADMAP/v0.1.md) to see what's comming/if you are looking to contribute!
+Breakfast `0.1` has been released! Further `v0.1.x` versions will include bug fixes, enhancements, etc.
+
+Breakfast `0.2` development will include all new major features and breaking changes. Check out out the [roadmap](./ROADMAP/v0.2.md) to see what's comming/if you are looking to contribute!
 
 ## Contributing
 
