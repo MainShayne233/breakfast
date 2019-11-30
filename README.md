@@ -124,6 +124,22 @@ iex> data = %{
 
 ## Quick Start
 
+### Installing
+
+Before you do anything, you need to add `:breakfast` as a dependency in your `mix.exs` file:
+
+```elixir
+# mix.exs
+
+defp deps do
+  [
+    {:breakfast, "0.1.0"}
+  ]
+end
+```
+
+### Decoding with Breakfast
+
 Let's say you're trying to decode some data of the following shape:
 
 <!--- MARKDOWN_TEST_START -->
