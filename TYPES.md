@@ -8,7 +8,6 @@ The following are the types that Breakfast has formal support for:
 
   - Basic Types:
     - `any()`
-    - `term()`
     - `atom()`
     - `map()`
     - `struct()`
