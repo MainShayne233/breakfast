@@ -38,13 +38,13 @@ The following are the types that Breakfast has formal support for:
     - `number()`
   - Union Types (`:red | :blue | :green`, `String.t() | atom()`)
   - Remote Types that resolve to a supported type
-  - Other Breakfast decoders `{:cereal, Config}`
+  - Other Breakfast decoders (`{:cereal, Config}`)
 
 ### Note about remote types
 
 Elixir allows for [remote type](https://hexdocs.pm/elixir/typespecs.html#remote-types) definitions (i.e. custom types).
 
-Elixir has many built-in remote types, like `String.t()`. Most of these remote types can be resolved to more basic Elixir types. In the case of `String.t()`, it resolves to `binary()` (at least at in Elixir 1.9).
+Elixir has many built-in remote types, like `String.t()`. Most of these remote types can be resolved to more basic Elixir types. In the case of `String.t()`, it resolves to `binary()` (at least in Elixir 1.9).
 
 If a built-in remote type can be resolved to a type Breakfast can understand, it can handle that remote type no problem. Breakfast can handle many built-in remote types, but there are a few more complex ones that it cannot. Improving this type support would be a great contribution! :-)
 
