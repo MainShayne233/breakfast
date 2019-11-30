@@ -1,5 +1,5 @@
 defmodule Breakfast do
-  @moduledoc File.read!("README.md")
+  @moduledoc Breakfast.Util.hexdocs_from_markdown("README.md")
 
   alias Breakfast.{Field, Yogurt}
 
