@@ -133,7 +133,7 @@ Before you do anything, you need to add `:breakfast` as a dependency in your `mi
 
 defp deps do
   [
-    {:breakfast, "0.1.0"}
+    {:breakfast, "0.1.1"}
   ]
 end
 ```
