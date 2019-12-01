@@ -23,7 +23,7 @@ In other words: describe what your data looks like, and Breakfast will generate 
 - [Using the Result](#using-the-result)
 - [Custom Configuration](#custom-configuration)
 - [Required Fields and Default Values](#required-fields-and-default-values)
-- [Embedded Cereals](#composing-cereals)
+- [Embedded Cereals](#embedded-cereals)
 - [Current State](#current-state)
 - [Contributing](#contributing)
 
