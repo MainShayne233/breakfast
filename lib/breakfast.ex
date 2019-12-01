@@ -125,6 +125,8 @@ defmodule Breakfast do
     do: apply_fn(mod, fetcher, [params, name])
 
   @spec cast(term(), Field.t()) :: result(term())
+  defp cast(value, %Field{default: {:ok, value}, caster: :default}), do: {:ok, value}
+
   defp cast(value, %Field{caster: :default, type: {:cereal, module}}) do
     case Breakfast.decode(module, value) do
       %Breakfast.Yogurt{errors: [], struct: struct} ->

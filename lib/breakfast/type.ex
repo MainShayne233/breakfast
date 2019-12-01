@@ -221,6 +221,11 @@ defmodule Breakfast.Type do
 
   def validate({:cereal, _module}, %Yogurt{errors: errors}), do: [errors]
 
+  def validate({:cereal, module}, term),
+    do: [
+      "expected a value that would decode to a #{inspect(module)}.t(), got: #{inspect(term)}"
+    ]
+
   def validate({:union, union_types}, term) do
     if Enum.any?(union_types, &(validate(&1, term) == [])) do
       []

@@ -11,6 +11,6 @@ defmodule Breakfast.Field do
     field :fetcher, atom()
     field :caster, atom()
     field :validator, atom()
-    field :default, atom()
+    field :default, {:ok, term()} | :error
   end
 end
