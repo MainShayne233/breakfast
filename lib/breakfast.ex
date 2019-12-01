@@ -141,6 +141,21 @@ defmodule Breakfast do
     maybe_map(value, &cast(&1, %Field{caster: :default, type: type}))
   end
 
+  defp cast(value, %Field{caster: :default, type: {:tuple, elem_types}})
+       when is_tuple(value) and tuple_size(value) == length(elem_types) do
+    value
+    |> Tuple.to_list()
+    |> Enum.zip(elem_types)
+    |> maybe_map(fn {elem, type} -> cast(elem, %Field{caster: :default, type: type}) end)
+    |> case do
+      {:ok, elems} ->
+        {:ok, List.to_tuple(elems)}
+
+      :error ->
+        :error
+    end
+  end
+
   defp cast(value, %Field{caster: :default}), do: {:ok, value}
 
   defp cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
