@@ -113,8 +113,13 @@ defmodule Breakfast do
   end
 
   @spec do_fetch(term(), Field.t()) :: result(term())
-  defp do_fetch(params, %Field{name: name, fetcher: :default}),
-    do: Map.fetch(params, to_string(name))
+  defp do_fetch(params, %Field{name: name, fetcher: :default}) do
+    if is_map(params) do
+      Map.fetch(params, to_string(name))
+    else
+      :error
+    end
+  end
 
   defp do_fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
