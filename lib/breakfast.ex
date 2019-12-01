@@ -3,6 +3,8 @@ defmodule Breakfast do
 
   alias Breakfast.{Field, Yogurt}
 
+  import Breakfast.Util, only: [maybe_map: 2]
+
   @typep result(t) :: Breakfast.Util.result(t)
 
   defmacro __using__(opts) do
@@ -128,21 +130,15 @@ defmodule Breakfast do
     end
   end
 
+  defp cast(value, %Field{caster: :default, type: {:list, type}}) when is_list(value) do
+    maybe_map(value, &cast(&1, %Field{caster: :default, type: type}))
+  end
+
   defp cast(value, %Field{caster: :default}), do: {:ok, value}
 
   defp cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
 
   @spec validate(term(), Field.t()) :: [String.t()]
-  defp validate(value, %Field{validator: :default, type: {:cereal, module}}) do
-    case value do
-      %^module{} ->
-        []
-
-      %Breakfast.Yogurt{errors: errors} ->
-        [errors]
-    end
-  end
-
   defp validate(value, %Field{validator: :default, type: type}),
     do: Breakfast.Type.validate(type, value)
 

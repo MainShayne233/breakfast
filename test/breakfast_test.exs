@@ -163,16 +163,30 @@ defmodule BreakfastTest do
         end
       end
 
+      defmodule RGBColor do
+        use Breakfast
+
+        cereal do
+          field(:r, non_neg_integer())
+          field(:g, non_neg_integer())
+          field(:b, non_neg_integer())
+        end
+      end
+
       cereal do
         field(:email, String.t())
         field(:config, {:cereal, Config})
+        field(:colors, [{:cereal, RGBColor}])
       end
     end
 
     test "should properly handle an externally defined cereal" do
       params = %{
         "email" => "some@email.com",
-        "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"}
+        "config" => %{"sleep_timeout" => 50_000, "timezone" => "UTC"},
+        "colors" => [
+          %{"r" => 10, "g" => 20, "b" => 30}
+        ]
       }
 
       result = Breakfast.decode(Server, params)
@@ -185,6 +199,7 @@ defmodule BreakfastTest do
                    sleep_timeout: 50000,
                    timezone: "UTC"
                  },
+                 colors: [%Server.RGBColor{r: 10, g: 20, b: 30}],
                  email: "some@email.com"
                }
              }
@@ -193,7 +208,10 @@ defmodule BreakfastTest do
     test "nested decoding errors should bubble up to top level yogurt" do
       bad_params = %{
         "email" => "some@email.com",
-        "config" => %{"sleep_timeout" => [], "timezone" => :UTC}
+        "config" => %{"sleep_timeout" => [], "timezone" => :UTC},
+        "colors" => [
+          %{"r" => 10, "g" => 20, "b" => 30}
+        ]
       }
 
       result = Breakfast.decode(Server, bad_params)

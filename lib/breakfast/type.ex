@@ -1,7 +1,9 @@
 defmodule Breakfast.Type do
   @moduledoc false
+  alias Breakfast.{Field, Yogurt}
   alias TypeReader.TerminalType
-  alias Breakfast.Field
+
+  import Breakfast.Util, only: [maybe_map: 2]
 
   @typep result(t) :: Breakfast.Util.result(t)
 
@@ -48,8 +50,6 @@ defmodule Breakfast.Type do
                                 ]
 
   @spec derive_from_spec(Macro.t()) :: Field.type() | no_return()
-  def derive_from_spec({:cereal, _} = cereal), do: cereal
-
   def derive_from_spec(spec) do
     with {:ok, type} <- safely_read_type(spec),
          {:ok, determined_type} <- determine_type(type) do
@@ -101,6 +101,37 @@ defmodule Breakfast.Type do
   defp determine_type(%TerminalType{name: type_name, bindings: []})
        when type_name in @understood_primitive_types do
     {:ok, type_name}
+  end
+
+  defp determine_type(%TypeReader.TerminalType{
+         bindings: [
+           elem_types: [
+             %TypeReader.TerminalType{bindings: [value: :cereal], name: :literal},
+             %TypeReader.TerminalType{
+               bindings: [value: cereal],
+               name: :literal
+             }
+           ]
+         ],
+         name: :tuple
+       }) do
+    {:ok, {:cereal, cereal}}
+  end
+
+  defp determine_type(%TypeReader.TerminalType{
+         bindings: [
+           type:
+             {:required_keys,
+              [
+                cereal: %TypeReader.TerminalType{
+                  bindings: [value: cereal],
+                  name: :literal
+                }
+              ]}
+         ],
+         name: :keyword
+       }) do
+    {:ok, {:list, {:cereal, cereal}}}
   end
 
   defp determine_type(%TerminalType{
@@ -185,6 +216,10 @@ defmodule Breakfast.Type do
         ["expected #{inspect(List.to_tuple(union_types))}, got: #{inspect(term)}"]
     end
   end
+
+  def validate({:cereal, module}, %module{}), do: []
+
+  def validate({:cereal, _module}, %Yogurt{errors: errors}), do: [errors]
 
   def validate({:union, union_types}, term) do
     if Enum.any?(union_types, &(validate(&1, term) == [])) do
@@ -292,21 +327,6 @@ defmodule Breakfast.Type do
       else
         ["expected a #{unquote(type)}, got: #{inspect(term)}"]
       end
-    end
-  end
-
-  @spec maybe_map(Enumerable.t(), (term() -> result(term()))) ::
-          result([term()])
-  defp maybe_map(enum, map) do
-    Enum.reduce_while(enum, [], fn value, acc ->
-      case map.(value) do
-        {:ok, mapped_value} -> {:cont, [mapped_value | acc]}
-        :error -> {:halt, :error}
-      end
-    end)
-    |> case do
-      acc when is_list(acc) -> {:ok, Enum.reverse(acc)}
-      :error -> :error
     end
   end
 
