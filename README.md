@@ -106,7 +106,7 @@ iex> data = %{
   errors: [],
   params: %{"email" => "john@aol.com", "id" => 1, "roles" => ["admin", "exec"]},
   struct: %User{email: "john@aol.com", id: 1, roles: ["admin", "exec"]},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :id, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :email, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :roles, type: {:list, :binary}, validator: :default}]
+  fields: [%Breakfast.Field{name: :id}, %Breakfast.Field{name: :email}, %Breakfast.Field{name: :roles}]
 }
 
 iex> data = %{
@@ -119,7 +119,7 @@ iex> data = %{
   errors: [roles: "expected a list of type :binary, got a list with at least one invalid element: expected a binary, got: :exec"],
   params: %{"email" => "john@aol.com", "id" => 1, "roles" => ["admin", :exec]},
   struct: %User{email: "john@aol.com", id: 1, roles: nil},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :id, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :email, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine99.User, name: :roles, type: {:list, :binary}, validator: :default}]
+  fields: [%Breakfast.Field{name: :id}, %Breakfast.Field{name: :email}, %Breakfast.Field{name: :roles}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -202,7 +202,7 @@ iex> data = %{
   errors: [],
   params: %{"age" => 67, "email" => "leo@aol.com", "roles" => ["exec", "admin"]},
   struct: %User{age: 67, email: "leo@aol.com", roles: ["exec", "admin"]},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine195.User, name: :email, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine195.User, name: :age, type: :non_neg_integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine195.User, name: :roles, type: {:list, :binary}, validator: :default}]
+  fields: [%Breakfast.Field{name: :email}, %Breakfast.Field{name: :age}, %Breakfast.Field{name: :roles}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -235,7 +235,7 @@ iex> data = %{
   errors: [age: "expected a non_neg_integer, got: -5"],
   params: %{"age" => -5, "name" => "Sean"},
   struct: %User{age: nil, name: "Sean"},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine229.User, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine229.User, name: :age, type: :non_neg_integer, validator: :default}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :age}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -262,7 +262,7 @@ iex> data = %{
   errors: [],
   params: %{"payload" => %{"some" => "data"}, "status" => :success},
   struct: %Request{payload: %{"some" => "data"}, status: :success},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine256.Request, name: :payload, type: :map, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine256.Request, name: :status, type: {:union, [literal: :pending, literal: :success, literal: :failed]}, validator: :default}]
+  fields: [%Breakfast.Field{name: :payload}, %Breakfast.Field{name: :status}]
 }
 
 iex> data = %{
@@ -274,7 +274,7 @@ iex> data = %{
   errors: [status: "expected one of :pending | :success | :failed, got: :waiting"],
   params: %{"payload" => %{"some" => "data"}, "status" => :waiting},
   struct: %Request{payload: %{"some" => "data"}, status: nil},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine256.Request, name: :payload, type: :map, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine256.Request, name: :status, type: {:union, [literal: :pending, literal: :success, literal: :failed]}, validator: :default}]
+  fields: [%Breakfast.Field{name: :payload}, %Breakfast.Field{name: :status}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -387,7 +387,7 @@ iex> data = %{
   errors: [],
   params: %{"SettingsName" => "Control Pannel", "timeout" => "1500", "volume" => 8},
   struct: %Settings{name: "Control Pannel", timeout: 1500, volume: 8},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :fetch_name, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :timeout, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :volume, type: :integer, validator: :valid_volume}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :timeout}, %Breakfast.Field{name: :volume}]
 }
 
 iex> data = %{
@@ -400,7 +400,7 @@ iex> data = %{
   errors: [name: "value not found", timeout: "cast error", volume: "expected an integer in 0..100, got: -100"],
   params: %{"name" => "Control Pannel", "timeout" => 1500, "volume" => -100},
   struct: %Settings{name: nil, timeout: nil, volume: nil},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :fetch_name, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :timeout, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine380.Settings, name: :volume, type: :integer, validator: :valid_volume}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :timeout}, %Breakfast.Field{name: :volume}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -449,7 +449,7 @@ iex> data = %{"R" => "10", "G" => "20", "B" => "30"}
   errors: [],
   params: %{"B" => "30", "G" => "20", "R" => "10"},
   struct: %RGBColor{b: 30, g: 20, r: 10},
-  fields: [%Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :r, type: :integer, validator: :valid_rgb_value}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :g, type: :integer, validator: :valid_rgb_value}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :b, type: :integer, validator: :valid_rgb_value}]
+  fields: [%Breakfast.Field{name: :r}, %Breakfast.Field{name: :g}, %Breakfast.Field{name: :b}]
 }
 
 iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
@@ -458,7 +458,7 @@ iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
   errors: [r: "value not found", g: "cast error", b: "expected an integer between 0 and 255, got: 500"],
   params: %{"B" => "500", "G" => "Twenty", "r" => "10"},
   struct: %RGBColor{b: nil, g: nil, r: nil},
-  fields: [%Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :r, type: :integer, validator: :valid_rgb_value}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :g, type: :integer, validator: :valid_rgb_value}, %Breakfast.Field{caster: :int_from_string, default: :error, fetcher: :fetch_upcase_key, mod: BreakfastTest.MarkdownTest.README.BlockAtLine446.RGBColor, name: :b, type: :integer, validator: :valid_rgb_value}]
+  fields: [%Breakfast.Field{name: :r}, %Breakfast.Field{name: :g}, %Breakfast.Field{name: :b}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -494,7 +494,7 @@ iex> data = ["Sully", 37, "sully@aol.com"]
   errors: [],
   params: ["Sully", 37, "sully@aol.com"],
   struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :fetch_at_list_index, mod: BreakfastTest.MarkdownTest.README.BlockAtLine491.SpreadsheetRow, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :fetch_at_list_index, mod: BreakfastTest.MarkdownTest.README.BlockAtLine491.SpreadsheetRow, name: :age, type: :non_neg_integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :fetch_at_list_index, mod: BreakfastTest.MarkdownTest.README.BlockAtLine491.SpreadsheetRow, name: :email, type: :binary, validator: :default}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :age}, %Breakfast.Field{name: :email}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -528,7 +528,7 @@ iex> data = %{
     tags: [],
     title: "Cool Thing I Did"
   },
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :title, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :content, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: {:ok, []}, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :tags, type: {:list, :binary}, validator: :default}]
+  fields: [%Breakfast.Field{name: :title}, %Breakfast.Field{name: :content}, %Breakfast.Field{name: :tags}]
 }
 
 iex> data = %{
@@ -545,7 +545,7 @@ iex> data = %{
     tags: ["blockchain", "crypto"],
     title: "Cool Thing I Did"
   },
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :title, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :content, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: {:ok, []}, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine518.Post, name: :tags, type: {:list, :binary}, validator: :default}]
+  fields: [%Breakfast.Field{name: :title}, %Breakfast.Field{name: :content}, %Breakfast.Field{name: :tags}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -597,7 +597,7 @@ iex> data = %{
       sleep_timeout: 5000, timezone: "EST"
     }
   },
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :score, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :config, type: {:cereal, BreakfastTest.MarkdownTest.README.BlockAtLine581.Player.Config}, validator: :default}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :score}, %Breakfast.Field{name: :config}]
 }
 
 iex> data = %{
@@ -613,7 +613,7 @@ iex> data = %{
   errors: [config: [sleep_timeout: "expected a non_neg_integer, got: -5000"]],
   params: %{"config" => %{"sleep_timeout" => -5000, "timezone" => "EST"}, "name" => "Leo", "score" => 1600},
   struct: %Player{config: nil, name: "Leo", score: 1600},
-  fields: [%Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :name, type: :binary, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :score, type: :integer, validator: :default}, %Breakfast.Field{caster: :default, default: :error, fetcher: :default, mod: BreakfastTest.MarkdownTest.README.BlockAtLine581.Player, name: :config, type: {:cereal, BreakfastTest.MarkdownTest.README.BlockAtLine581.Player.Config}, validator: :default}]
+  fields: [%Breakfast.Field{name: :name}, %Breakfast.Field{name: :score}, %Breakfast.Field{name: :config}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
