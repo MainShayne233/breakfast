@@ -127,7 +127,36 @@ defmodule BreakfastTest do
                  age: 28,
                  first_name: "shawn",
                  last_name: "trembles"
-               }
+               },
+               fields: [
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: &BreakfastTest.JSUser.camel_key_fetch/2,
+                   mod: BreakfastTest.JSUser,
+                   name: :first_name,
+                   type: :binary,
+                   validator: :default
+                 },
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: &BreakfastTest.JSUser.camel_key_fetch/2,
+                   mod: BreakfastTest.JSUser,
+                   name: :last_name,
+                   type: :binary,
+                   validator: :default
+                 },
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: :fetch_age,
+                   mod: BreakfastTest.JSUser,
+                   name: :age,
+                   type: :integer,
+                   validator: :default
+                 }
+               ]
              }
     end
 
@@ -201,7 +230,36 @@ defmodule BreakfastTest do
                  },
                  colors: [%Server.RGBColor{r: 10, g: 20, b: 30}],
                  email: "some@email.com"
-               }
+               },
+               fields: [
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: :default,
+                   mod: BreakfastTest.Server,
+                   name: :email,
+                   type: :binary,
+                   validator: :default
+                 },
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: :default,
+                   mod: BreakfastTest.Server,
+                   name: :config,
+                   type: {:cereal, BreakfastTest.Server.Config},
+                   validator: :default
+                 },
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: :default,
+                   mod: BreakfastTest.Server,
+                   name: :colors,
+                   type: {:list, {:cereal, BreakfastTest.Server.RGBColor}},
+                   validator: :default
+                 }
+               ]
              }
     end
 
@@ -277,7 +335,18 @@ defmodule BreakfastTest do
                      c: %SuperNestedDecoder.A.B.C{value: 1}
                    }
                  }
-               }
+               },
+               fields: [
+                 %Breakfast.Field{
+                   caster: :default,
+                   default: :error,
+                   fetcher: :default,
+                   mod: BreakfastTest.SuperNestedDecoder,
+                   name: :a,
+                   type: {:cereal, BreakfastTest.SuperNestedDecoder.A},
+                   validator: :default
+                 }
+               ]
              }
     end
   end
@@ -539,7 +608,36 @@ defmodule BreakfastTest do
                    age: 20,
                    email: "my@email.com",
                    roles: ["user", "exec"]
-                 }
+                 },
+                 fields: [
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :email,
+                     type: :binary,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :age,
+                     type: :integer,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :roles,
+                     type: {:list, :binary},
+                     validator: :default
+                   }
+                 ]
                }
 
       assert Breakfast.decode(READMEExampleOne.User, %{params | "age" => 20.5}) ==
@@ -554,7 +652,36 @@ defmodule BreakfastTest do
                    age: nil,
                    email: "my@email.com",
                    roles: ["user", "exec"]
-                 }
+                 },
+                 fields: [
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :email,
+                     type: :binary,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :age,
+                     type: :integer,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleOne.User,
+                     name: :roles,
+                     type: {:list, :binary},
+                     validator: :default
+                   }
+                 ]
                }
     end
 
@@ -577,7 +704,36 @@ defmodule BreakfastTest do
                    age: 20,
                    email: "my@email.com",
                    roles: ["user", "exec"]
-                 }
+                 },
+                 fields: [
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleTwo.User,
+                     name: :email,
+                     type: :binary,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :default,
+                     mod: BreakfastTest.READMEExampleTwo.User,
+                     name: :age,
+                     type: :integer,
+                     validator: :default
+                   },
+                   %Breakfast.Field{
+                     caster: :default,
+                     default: :error,
+                     fetcher: :fetch_roles,
+                     mod: BreakfastTest.READMEExampleTwo.User,
+                     name: :roles,
+                     type: {:list, :binary},
+                     validator: :default
+                   }
+                 ]
                }
     end
   end
