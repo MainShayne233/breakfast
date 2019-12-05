@@ -45,10 +45,12 @@ defmodule Breakfast do
   """
   @spec decode(mod :: module(), params :: term()) :: Yogurt.t()
   def decode(mod, params) do
+    fields = mod.__cereal__(:fields)
+
     yogurt =
       Enum.reduce(
-        mod.__cereal__(:fields),
-        %Yogurt{struct: struct(mod), params: params},
+        fields,
+        %Yogurt{struct: struct(mod), params: params, fields: fields},
         fn %Field{
              name: name,
              fetcher: fetcher,

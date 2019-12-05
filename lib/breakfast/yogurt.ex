@@ -13,6 +13,7 @@ defmodule Breakfast.Yogurt do
     field :params, term(), default: nil
     field :errors, [String.t()], default: []
     field :struct, struct(), default: nil
+    field :fields, [Breakfast.Field.t()], default: []
   end
 
   @spec valid?(t()) :: boolean()

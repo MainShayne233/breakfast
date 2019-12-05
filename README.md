@@ -105,7 +105,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [],
   params: %{"email" => "john@aol.com", "id" => 1, "roles" => ["admin", "exec"]},
-  struct: %User{email: "john@aol.com", id: 1, roles: ["admin", "exec"]}
+  struct: %User{email: "john@aol.com", id: 1, roles: ["admin", "exec"]},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{
@@ -199,7 +200,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [],
   params: %{"age" => 67, "email" => "leo@aol.com", "roles" => ["exec", "admin"]},
-  struct: %User{age: 67, email: "leo@aol.com", roles: ["exec", "admin"]}
+  struct: %User{age: 67, email: "leo@aol.com", roles: ["exec", "admin"]},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -231,7 +233,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [age: "expected a non_neg_integer, got: -5"],
   params: %{"age" => -5, "name" => "Sean"},
-  struct: %User{age: nil, name: "Sean"}
+  struct: %User{age: nil, name: "Sean"},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -257,7 +260,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [],
   params: %{"payload" => %{"some" => "data"}, "status" => :success},
-  struct: %Request{payload: %{"some" => "data"}, status: :success}
+  struct: %Request{payload: %{"some" => "data"}, status: :success},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{
@@ -268,7 +272,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [status: "expected one of :pending | :success | :failed, got: :waiting"],
   params: %{"payload" => %{"some" => "data"}, "status" => :waiting},
-  struct: %Request{payload: %{"some" => "data"}, status: nil}
+  struct: %Request{payload: %{"some" => "data"}, status: nil},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -379,7 +384,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [],
   params: %{"SettingsName" => "Control Pannel", "timeout" => "1500", "volume" => 8},
-  struct: %Settings{name: "Control Pannel", timeout: 1500, volume: 8}
+  struct: %Settings{name: "Control Pannel", timeout: 1500, volume: 8},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{
@@ -391,7 +397,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [name: "value not found", timeout: "cast error", volume: "expected an integer in 0..100, got: -100"],
   params: %{"name" => "Control Pannel", "timeout" => 1500, "volume" => -100},
-  struct: %Settings{name: nil, timeout: nil, volume: nil}
+  struct: %Settings{name: nil, timeout: nil, volume: nil},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -439,7 +446,8 @@ iex> data = %{"R" => "10", "G" => "20", "B" => "30"}
 %Breakfast.Yogurt{
   errors: [],
   params: %{"B" => "30", "G" => "20", "R" => "10"},
-  struct: %RGBColor{b: 30, g: 20, r: 10}
+  struct: %RGBColor{b: 30, g: 20, r: 10},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
@@ -447,7 +455,8 @@ iex> data = %{"r" => "10", "G" => "Twenty", "B" => "500"}
 %Breakfast.Yogurt{
   errors: [r: "value not found", g: "cast error", b: "expected an integer between 0 and 255, got: 500"],
   params: %{"B" => "500", "G" => "Twenty", "r" => "10"},
-  struct: %RGBColor{b: nil, g: nil, r: nil}
+  struct: %RGBColor{b: nil, g: nil, r: nil},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -482,7 +491,8 @@ iex> data = ["Sully", 37, "sully@aol.com"]
 %Breakfast.Yogurt{
   errors: [],
   params: ["Sully", 37, "sully@aol.com"],
-  struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"}
+  struct: %SpreadsheetRow{age: 37, email: "sully@aol.com", name: "Sully"},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -515,7 +525,8 @@ iex> data = %{
     content: "Thanks for reading!",
     tags: [],
     title: "Cool Thing I Did"
-  }
+  },
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{
@@ -531,7 +542,8 @@ iex> data = %{
     content: "Thanks for reading!",
     tags: ["blockchain", "crypto"],
     title: "Cool Thing I Did"
-  }
+  },
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
@@ -582,7 +594,8 @@ iex> data = %{
     config: %Player.Config{
       sleep_timeout: 5000, timezone: "EST"
     }
-  }
+  },
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 
 iex> data = %{
@@ -597,7 +610,8 @@ iex> data = %{
 %Breakfast.Yogurt{
   errors: [config: [sleep_timeout: "expected a non_neg_integer, got: -5000"]],
   params: %{"config" => %{"sleep_timeout" => -5000, "timezone" => "EST"}, "name" => "Leo", "score" => 1600},
-  struct: %Player{config: nil, name: "Leo", score: 1600}
+  struct: %Player{config: nil, name: "Leo", score: 1600},
+  fields: [%Breakfast.Field{}, %Breakfast.Field{}, %Breakfast.Field{}]
 }
 ```
 <!--- MARKDOWN_TEST_END -->
