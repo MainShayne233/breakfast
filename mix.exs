@@ -52,7 +52,7 @@ defmodule Breakfast.MixProject do
   defp deps do
     [
       {:typed_struct, "~> 0.1.4"},
-      {:type_reader, "~> 0.0.2"},
+      {:type_reader, "~> 0.0.3"},
       {:mix_test_watch, "~> 0.8", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0-rc.7", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.12.0", only: [:dev, :test], runtime: false},
