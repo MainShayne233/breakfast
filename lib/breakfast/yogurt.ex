@@ -1,6 +1,6 @@
 defmodule Breakfast.Yogurt do
   @moduledoc """
-  The %#{__MODULE__}{} struct is the resulting value of a call to `Breakfast.decode/2`.
+  The `%#{__MODULE__}{}` struct is the resulting value of a call to `Breakfast.decode/2`.
 
   It contains all the information regarding a particular decode, including:
   - the params passed in
@@ -13,6 +13,7 @@ defmodule Breakfast.Yogurt do
     field :params, term(), default: nil
     field :errors, [String.t()], default: []
     field :struct, struct(), default: nil
+    field :fields, [Breakfast.Field.t()], default: []
   end
 
   @spec valid?(t()) :: boolean()
