@@ -3,8 +3,6 @@ defmodule Breakfast do
 
   alias Breakfast.{Field, Yogurt}
 
-  import Breakfast.Util, only: [maybe_map: 2]
-
   @typep result(t) :: Breakfast.Util.result(t)
 
   defmacro __using__(opts) do
@@ -126,41 +124,171 @@ defmodule Breakfast do
   defp do_fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
 
-  @spec cast(term(), Field.t()) :: result(term())
-  defp cast(value, %Field{default: {:ok, value}, caster: :default}), do: {:ok, value}
+  @spec find_all_nested_decoder_paths_in_type(Field.t()) :: [{list(), term()}]
+  defp find_all_nested_decoder_paths_in_type(field) do
+    do_find_all_nested_decoder_paths_in_type(field, field.type, [], [])
+    |> Enum.map(fn {path, type} -> {Enum.reverse(path), type} end)
+  end
 
-  defp cast(value, %Field{caster: :default, type: {:cereal, module}}) do
+  @spec do_find_all_nested_decoder_paths_in_type(Field.t(), term(), list(), list()) :: [
+          {term(), term()}
+        ]
+  defp do_find_all_nested_decoder_paths_in_type(field, type, current_path, paths)
+
+  defp do_find_all_nested_decoder_paths_in_type(
+         _field,
+         {:cereal, _} = cereal,
+         current_path,
+         paths
+       ) do
+    [{current_path, cereal} | paths]
+  end
+
+  defp do_find_all_nested_decoder_paths_in_type(field, {:list, type}, current_path, paths) do
+    field
+    |> do_find_all_nested_decoder_paths_in_type(type, [:list | current_path], paths)
+    |> Enum.concat(paths)
+  end
+
+  defp do_find_all_nested_decoder_paths_in_type(field, {:tuple, types}, current_path, paths) do
+    types
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {type, index} ->
+      do_find_all_nested_decoder_paths_in_type(
+        field,
+        type,
+        [{:tuple, index} | current_path],
+        paths
+      )
+    end)
+    |> Enum.concat(paths)
+  end
+
+  defp do_find_all_nested_decoder_paths_in_type(
+         field,
+         {:map, {required, optional}},
+         current_path,
+         paths
+       ) do
+    required_paths =
+      Enum.flat_map(required, fn {key_type, value_type} ->
+        do_find_all_nested_decoder_paths_in_type(
+          field,
+          value_type,
+          [{:map, {:required, key_type}} | current_path],
+          paths
+        )
+      end)
+
+    optional_paths =
+      Enum.flat_map(optional, fn {key_type, value_type} ->
+        do_find_all_nested_decoder_paths_in_type(
+          field,
+          value_type,
+          [{:map, {:optional, key_type}} | current_path],
+          paths
+        )
+      end)
+
+    required_paths ++ optional_paths ++ paths
+  end
+
+  defp do_find_all_nested_decoder_paths_in_type(field, {:union, types}, current_path, paths) do
+    types
+    |> Enum.flat_map(fn type ->
+      do_find_all_nested_decoder_paths_in_type(
+        field,
+        type,
+        [:union | current_path],
+        paths
+      )
+    end)
+    |> Enum.concat(paths)
+  end
+
+  defp do_find_all_nested_decoder_paths_in_type(_field, _type, _current_path, _paths), do: []
+
+  @spec cast_any_nested_decoder_values(term(), Field.t()) :: term()
+  defp cast_any_nested_decoder_values(value, field) do
+    field
+    |> find_all_nested_decoder_paths_in_type()
+    |> Enum.reduce(value, &do_cast_any_nested_decoder_values/2)
+  end
+
+  @spec do_cast_any_nested_decoder_values({list(), term()}, term(), boolean()) :: term()
+  defp do_cast_any_nested_decoder_values(path_and_type, value, strict? \\ true)
+
+  defp do_cast_any_nested_decoder_values({[], {:cereal, module}}, value, strict?) do
     case Breakfast.decode(module, value) do
-      %Breakfast.Yogurt{errors: [], struct: struct} ->
-        {:ok, struct}
+      %Yogurt{errors: [], struct: struct} ->
+        struct
 
-      %Breakfast.Yogurt{errors: [_ | _]} = yogurt ->
-        {:ok, yogurt}
+      %Yogurt{errors: [_ | _]} = yogurt ->
+        if strict?, do: yogurt, else: value
     end
   end
 
-  defp cast(value, %Field{caster: :default, type: {:list, type}}) when is_list(value) do
-    maybe_map(value, &cast(&1, %Field{caster: :default, type: type}))
+  defp do_cast_any_nested_decoder_values({[:list | rest], type}, value, strict?) do
+    Enum.map(value, &do_cast_any_nested_decoder_values({rest, type}, &1, strict?))
   end
 
-  defp cast(value, %Field{caster: :default, type: {:tuple, elem_types}})
-       when is_tuple(value) and tuple_size(value) == length(elem_types) do
+  defp do_cast_any_nested_decoder_values({[{:tuple, index} | rest], type}, value, strict?) do
     value
     |> Tuple.to_list()
-    |> Enum.zip(elem_types)
-    |> maybe_map(fn {elem, type} -> cast(elem, %Field{caster: :default, type: type}) end)
-    |> case do
-      {:ok, elems} ->
-        {:ok, List.to_tuple(elems)}
+    |> Enum.with_index()
+    |> Enum.map(fn
+      {value, ^index} ->
+        do_cast_any_nested_decoder_values({rest, type}, value, strict?)
 
-      :error ->
-        :error
-    end
+      {value, _} ->
+        value
+    end)
+    |> List.to_tuple()
   end
 
-  defp cast(value, %Field{caster: :default}), do: {:ok, value}
+  defp do_cast_any_nested_decoder_values(
+         {[{:map, {require_type, key_type}} | rest], type},
+         value,
+         strict?
+       )
+       when is_map(value) do
+    value
+    |> Enum.map(fn {key, value} ->
+      if Breakfast.Type.validate(key_type, key) == [] do
+        {key,
+         do_cast_any_nested_decoder_values(
+           {rest, type},
+           value,
+           strict? and require_type == :required
+         )}
+      else
+        {key, value}
+      end
+    end)
+    |> Enum.into(%{})
+  end
 
-  defp cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
+  defp do_cast_any_nested_decoder_values({[:union | rest], type}, value, _strict?) do
+    do_cast_any_nested_decoder_values({rest, type}, value, false)
+  end
+
+  defp do_cast_any_nested_decoder_values(_path, value, _strict?) do
+    value
+  end
+
+  @spec cast(term(), Field.t()) :: result(term())
+  defp cast(value, field) do
+    value
+    |> cast_any_nested_decoder_values(field)
+    |> do_cast(field)
+  end
+
+  @spec do_cast(term(), Field.t()) :: result(term())
+  defp do_cast(value, %Field{default: {:ok, value}, caster: :default}), do: {:ok, value}
+
+  defp do_cast(value, %Field{caster: :default}), do: {:ok, value}
+
+  defp do_cast(value, %Field{mod: mod, caster: caster}), do: apply_fn(mod, caster, [value])
 
   @spec validate(term(), Field.t()) :: [String.t()]
   defp validate(value, %Field{validator: :default, type: type}),

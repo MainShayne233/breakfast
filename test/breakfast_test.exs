@@ -944,4 +944,94 @@ defmodule BreakfastTest do
                ]
     end
   end
+
+  describe "automatic casting of nested decoders" do
+    defmodule NestedDecoderCasting do
+      use Breakfast
+
+      defmodule User do
+        use Breakfast
+
+        cereal do
+          field :email, String.t()
+        end
+      end
+
+      defmodule Guest do
+        use Breakfast
+
+        cereal do
+          field :username, String.t()
+        end
+      end
+
+      cereal do
+        field :decoder, {:cereal, User}
+        field :list, [{:cereal, User}]
+        field :tuple, {atom(), {:cereal, User}}
+        field :required_key_in_map, %{required(String.t()) => {:cereal, User}}
+        field :optional_key_in_map_present, %{optional(String.t()) => {:cereal, User}}
+        field :optional_key_in_map_not_present, %{optional(String.t()) => {:cereal, User}}
+        field :union_not_nil, {:cereal, User} | nil
+        field :union_nil, {:cereal, User} | nil
+        field :union_first_success, {:cereal, User} | {:cereal, Guest}
+        field :union_second_success, {:cereal, User} | {:cereal, Guest}
+        field :nested_present, {atom(), [%{required(String.t()) => {:cereal, User} | nil}]}
+        field :nested_not_present, {atom(), [%{required(String.t()) => {:cereal, User} | nil}]}
+      end
+    end
+
+    setup do
+      user_params = %{"email" => "leo@aol.com"}
+      guest_params = %{"username" => "LeoTheCat"}
+
+      valid_params = %{
+        "decoder" => user_params,
+        "list" => [user_params],
+        "tuple" => {:user, user_params},
+        "required_key_in_map" => %{"user" => user_params},
+        "optional_key_in_map_present" => %{"user" => user_params},
+        "optional_key_in_map_not_present" => %{},
+        "union_not_nil" => user_params,
+        "union_nil" => nil,
+        "union_first_success" => user_params,
+        "union_second_success" => guest_params,
+        "nested_present" => {:params, [%{"user" => user_params}]},
+        "nested_not_present" => {:params, [%{"user" => nil}]}
+      }
+
+      %{valid_params: valid_params}
+    end
+
+    test "field who's types have a decoder nested in them should have those values get automatically casted",
+         %{valid_params: params} do
+      result = Breakfast.decode(NestedDecoderCasting, params)
+
+      assert result.errors == []
+
+      assert result.struct == %NestedDecoderCasting{
+               decoder: %NestedDecoderCasting.User{email: "leo@aol.com"},
+               list: [%NestedDecoderCasting.User{email: "leo@aol.com"}],
+               nested_not_present: {:params, [%{"user" => nil}]},
+               nested_present:
+                 {:params, [%{"user" => %NestedDecoderCasting.User{email: "leo@aol.com"}}]},
+               optional_key_in_map_not_present: %{},
+               optional_key_in_map_present: %{
+                 "user" => %NestedDecoderCasting.User{email: "leo@aol.com"}
+               },
+               required_key_in_map: %{
+                 "user" => %NestedDecoderCasting.User{email: "leo@aol.com"}
+               },
+               tuple: {:user, %NestedDecoderCasting.User{email: "leo@aol.com"}},
+               union_first_success: %NestedDecoderCasting.User{
+                 email: "leo@aol.com"
+               },
+               union_nil: nil,
+               union_not_nil: %NestedDecoderCasting.User{email: "leo@aol.com"},
+               union_second_success: %NestedDecoderCasting.Guest{
+                 username: "LeoTheCat"
+               }
+             }
+    end
+  end
 end
