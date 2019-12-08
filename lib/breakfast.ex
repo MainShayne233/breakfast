@@ -124,6 +124,83 @@ defmodule Breakfast do
   defp do_fetch(params, %Field{mod: mod, name: name, fetcher: fetcher}),
     do: apply_fn(mod, fetcher, [params, name])
 
+  ##
+  # We want to make sure that any nested Breakfast decoders that are a part of the field's type get
+  # properly casted using that decoder.
+  #
+  # In order to do this, we:
+  # - Traverse the field's type and find all the places where a value might need to be casted
+  #   using a decoder
+  # - Iterate through these locations in the type and attempt to cast that part of the value as needed
+  #
+  # This should properly cast values regardless of how deep in the data structre they are, and do its best
+  # to handle cases like: a value 5 levels deep has a union type where one of the union types is a Breakfast decoder.
+  @spec cast_any_nested_decoder_values(term(), Field.t()) :: term()
+  defp cast_any_nested_decoder_values(value, field) do
+    field
+    |> find_all_nested_decoder_paths_in_type()
+    |> Enum.reduce(value, &do_cast_any_nested_decoder_values/2)
+  end
+
+  @spec do_cast_any_nested_decoder_values({list(), term()}, term(), boolean()) :: term()
+  defp do_cast_any_nested_decoder_values(path_and_type, value, strict? \\ true)
+
+  defp do_cast_any_nested_decoder_values({[], {:cereal, module}}, value, strict?) do
+    case Breakfast.decode(module, value) do
+      %Yogurt{errors: [], struct: struct} ->
+        struct
+
+      %Yogurt{errors: [_ | _]} = yogurt ->
+        if strict?, do: yogurt, else: value
+    end
+  end
+
+  defp do_cast_any_nested_decoder_values({[:list | rest], type}, value, strict?) do
+    Enum.map(value, &do_cast_any_nested_decoder_values({rest, type}, &1, strict?))
+  end
+
+  defp do_cast_any_nested_decoder_values({[{:tuple, index} | rest], type}, value, strict?) do
+    value
+    |> Tuple.to_list()
+    |> Enum.with_index()
+    |> Enum.map(fn
+      {value, ^index} ->
+        do_cast_any_nested_decoder_values({rest, type}, value, strict?)
+
+      {value, _} ->
+        value
+    end)
+    |> List.to_tuple()
+  end
+
+  defp do_cast_any_nested_decoder_values(
+         {[{:map, {require_type, key_type}} | rest], type},
+         value,
+         strict?
+       )
+       when is_map(value) do
+    value
+    |> Enum.map(fn {key, value} ->
+      if Breakfast.Type.validate(key_type, key) == [] do
+        {key,
+         do_cast_any_nested_decoder_values(
+           {rest, type},
+           value,
+           strict? and require_type == :required
+         )}
+      else
+        {key, value}
+      end
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp do_cast_any_nested_decoder_values({[:union | rest], type}, value, _strict?) do
+    do_cast_any_nested_decoder_values({rest, type}, value, false)
+  end
+
+  defp do_cast_any_nested_decoder_values(_path, value, _strict?), do: value
+
   @spec find_all_nested_decoder_paths_in_type(Field.t()) :: [{list(), term()}]
   defp find_all_nested_decoder_paths_in_type(field) do
     field
@@ -208,72 +285,6 @@ defmodule Breakfast do
   end
 
   defp do_find_all_nested_decoder_paths_in_type(_field, _type, _current_path, _paths), do: []
-
-  @spec cast_any_nested_decoder_values(term(), Field.t()) :: term()
-  defp cast_any_nested_decoder_values(value, field) do
-    field
-    |> find_all_nested_decoder_paths_in_type()
-    |> Enum.reduce(value, &do_cast_any_nested_decoder_values/2)
-  end
-
-  @spec do_cast_any_nested_decoder_values({list(), term()}, term(), boolean()) :: term()
-  defp do_cast_any_nested_decoder_values(path_and_type, value, strict? \\ true)
-
-  defp do_cast_any_nested_decoder_values({[], {:cereal, module}}, value, strict?) do
-    case Breakfast.decode(module, value) do
-      %Yogurt{errors: [], struct: struct} ->
-        struct
-
-      %Yogurt{errors: [_ | _]} = yogurt ->
-        if strict?, do: yogurt, else: value
-    end
-  end
-
-  defp do_cast_any_nested_decoder_values({[:list | rest], type}, value, strict?) do
-    Enum.map(value, &do_cast_any_nested_decoder_values({rest, type}, &1, strict?))
-  end
-
-  defp do_cast_any_nested_decoder_values({[{:tuple, index} | rest], type}, value, strict?) do
-    value
-    |> Tuple.to_list()
-    |> Enum.with_index()
-    |> Enum.map(fn
-      {value, ^index} ->
-        do_cast_any_nested_decoder_values({rest, type}, value, strict?)
-
-      {value, _} ->
-        value
-    end)
-    |> List.to_tuple()
-  end
-
-  defp do_cast_any_nested_decoder_values(
-         {[{:map, {require_type, key_type}} | rest], type},
-         value,
-         strict?
-       )
-       when is_map(value) do
-    value
-    |> Enum.map(fn {key, value} ->
-      if Breakfast.Type.validate(key_type, key) == [] do
-        {key,
-         do_cast_any_nested_decoder_values(
-           {rest, type},
-           value,
-           strict? and require_type == :required
-         )}
-      else
-        {key, value}
-      end
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp do_cast_any_nested_decoder_values({[:union | rest], type}, value, _strict?) do
-    do_cast_any_nested_decoder_values({rest, type}, value, false)
-  end
-
-  defp do_cast_any_nested_decoder_values(_path, value, _strict?), do: value
 
   @spec cast(term(), Field.t()) :: result(term())
   defp cast(value, field) do
