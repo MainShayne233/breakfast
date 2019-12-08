@@ -126,7 +126,8 @@ defmodule Breakfast do
 
   @spec find_all_nested_decoder_paths_in_type(Field.t()) :: [{list(), term()}]
   defp find_all_nested_decoder_paths_in_type(field) do
-    do_find_all_nested_decoder_paths_in_type(field, field.type, [], [])
+    field
+    |> do_find_all_nested_decoder_paths_in_type(field.type, [], [])
     |> Enum.map(fn {path, type} -> {Enum.reverse(path), type} end)
   end
 
@@ -272,9 +273,7 @@ defmodule Breakfast do
     do_cast_any_nested_decoder_values({rest, type}, value, false)
   end
 
-  defp do_cast_any_nested_decoder_values(_path, value, _strict?) do
-    value
-  end
+  defp do_cast_any_nested_decoder_values(_path, value, _strict?), do: value
 
   @spec cast(term(), Field.t()) :: result(term())
   defp cast(value, field) do
