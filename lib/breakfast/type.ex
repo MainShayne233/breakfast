@@ -465,7 +465,7 @@ defmodule Breakfast.Type do
 
   defp display_type({:list, type}), do: "[#{display_type(type)}]"
 
-  defp display_type(:atom), do: "atom()"
+  defp display_type(type) when is_atom(type), do: "#{type}()"
 
   defp display_type({:literal, literal}), do: inspect(literal)
 

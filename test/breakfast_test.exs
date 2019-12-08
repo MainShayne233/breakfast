@@ -408,7 +408,7 @@ defmodule BreakfastTest do
 
       assert result.errors == [
                tag_groupings:
-                 "expected a list of type {:list, :binary}, got a list with at least one invalid element: expected a list of type :binary, got: \"user\", expected a list of type :binary, got: \"admin\""
+                 "expected a list of type [binary()], got a list with at least one invalid element: expected a list of type binary(), got: \"user\", expected a list of type binary(), got: \"admin\""
              ]
     end
 
@@ -418,7 +418,11 @@ defmodule BreakfastTest do
 
       params = %{params | "ratio" => [7, 5.0]}
       result = Breakfast.decode(ColorData, params)
-      assert result.errors == [ratio: "expected {:integer, :integer}, got: {7, 5.0}"]
+
+      assert result.errors == [
+               ratio:
+                 "expected a tuple with the following shape: {integer(), integer()}, got: {7, 5.0}"
+             ]
     end
   end
 
@@ -902,7 +906,7 @@ defmodule BreakfastTest do
                  boolean: "expected a boolean, got: \"true\"",
                  keyword: "expected a keyword, got: %{name: :cool}",
                  typed_keyword:
-                   "expected a keyword with values of type :binary, got: a keyword with invalid values: [name: [\"expected a binary, got: 5\"]]",
+                   "expected a keyword with values of type binary(), got: a keyword with invalid values: [name: [\"expected a binary, got: 5\"]]",
                  map: "expected a map, got: []",
                  struct: "expected a struct, got: %{name: :cool}",
                  tuple: "expected a tuple, got: [:apples, :oranges]",
@@ -915,31 +919,33 @@ defmodule BreakfastTest do
                  list: "expected a list, got: {}",
                  nonempty_list: "expected a nonempty_list, got: []",
                  typed_list:
-                   "expected a list of type :atom, got a list with at least one invalid element: expected a atom, got: \"oranges\"",
-                 nonempty_typed_list: "expected a nonempty_list of type :atom, got: []",
+                   "expected a list of type atom(), got a list with at least one invalid element: expected a atom, got: \"oranges\"",
+                 nonempty_typed_list: "expected a nonempty_list of type atom(), got: []",
                  mfa: "expected a mfa, got: {Breakfast, :decode, 2.0}",
                  module: "expected a module, got: \"Breakfast\"",
                  literal_atom: "expected :hey, got: :apples",
                  literal_integer: "expected 5, got: 6",
                  literal_integer_in_range: "expected an integer in 5..10, got: 100",
                  literal_typed_list:
-                   "expected a list of type :atom, got a list with at least one invalid element: expected a atom, got: \"oranges\"",
+                   "expected a list of type atom(), got a list with at least one invalid element: expected a atom, got: \"oranges\"",
                  literal_empty_list: "expected a empty_list, got: [1]",
-                 literal_nonempty_list: "expected a nonempty_list of type :any, got: []",
-                 literal_typed_nonempty_list: "expected a nonempty_list of type :atom, got: []",
+                 literal_nonempty_list: "expected a nonempty_list of type any(), got: []",
+                 literal_typed_nonempty_list: "expected a nonempty_list of type atom(), got: []",
                  literal_keyword:
-                   "expected a keyword with values of type required(format: :atom), got: a keyword with invalid values: [format: [\"expected a atom, got: \\\"standard\\\"\"]]",
+                   "expected a keyword with values of type required(format: atom()), got: a keyword with invalid values: [format: [\"expected a atom, got: \\\"standard\\\"\"]]",
                  literal_empty_map: "expected a empty_map, got: %{key: :value}",
                  literal_atom_key_map:
                    "expected a field with key :format and value of type :atom, got: invalid value: [\"expected a atom, got: \\\"standard\\\"\"]",
+                 literal_required_option_key_map: "expected a binary, got: :format",
                  literal_struct:
                    "expected a %Breakfast.TestDefinitions.Struct{}, got: %Breakfast.TestDefinitions.OtherStruct{email: \"\"}",
                  literal_typed_struct:
                    "expected a field with key :name and value of type :binary, got: invalid value: [\"expected a binary, got: 42\"]",
-                 literal_empty_tuple: "expected {}, got: {:apples}",
+                 literal_empty_tuple:
+                   "expected a tuple with the following shape: {}, got: {:apples}",
                  literal_typed_tuple:
-                   "expected {:atom, :binary, :integer}, got: {\"apples\", \"oranges\", 123.56}",
-                 union_type: "expected one of :integer | :never | :infinity, got: :always",
+                   "expected a tuple with the following shape: {atom(), binary(), integer()}, got: {\"apples\", \"oranges\", 123.56}",
+                 union_type: "expected one of integer() | :never | :infinity, got: :always",
                  remote: "expected one of :red | :green | :blue, got: :purple"
                ]
     end
@@ -985,7 +991,7 @@ defmodule BreakfastTest do
       user_params = %{"email" => "leo@aol.com"}
       guest_params = %{"username" => "LeoTheCat"}
 
-      valid_params = %{
+      params = %{
         "decoder" => user_params,
         "list" => [user_params],
         "tuple" => {:user, user_params},
@@ -1000,11 +1006,11 @@ defmodule BreakfastTest do
         "nested_not_present" => {:params, [%{"user" => nil}]}
       }
 
-      %{valid_params: valid_params}
+      %{params: params}
     end
 
     test "field who's types have a decoder nested in them should have those values get automatically casted",
-         %{valid_params: params} do
+         %{params: params} do
       result = Breakfast.decode(NestedDecoderCasting, params)
 
       assert result.errors == []
@@ -1032,6 +1038,21 @@ defmodule BreakfastTest do
                  username: "LeoTheCat"
                }
              }
+    end
+
+    test "the error for an invalid value within a nested decoder should make sense",
+         %{params: params} do
+      invalid_params = %{
+        params
+        | "nested_not_present" => {:params, [%{"user" => :bad_value}]}
+      }
+
+      result = Breakfast.decode(NestedDecoderCasting, invalid_params)
+
+      assert result.errors == [
+               nested_not_present:
+                 "expected a tuple with the following shape: {atom(), [%{required(binary()) => BreakfastTest.NestedDecoderCasting.User.t() | nil}]}, got: {:params, [%{\"user\" => :bad_value}]}"
+             ]
     end
   end
 end
