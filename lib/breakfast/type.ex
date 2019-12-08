@@ -384,21 +384,21 @@ defmodule Breakfast.Type do
         end
 
       {key_type, value_type}, acc ->
-        Enum.any?(map, fn {key, value} ->
+        Enum.reduce_while(map, [], fn {key, value}, acc ->
           case {validate(key_type, key), validate(value_type, value)} do
             {[], []} ->
-              true
+              {:halt, :ok}
 
-            _other ->
-              false
+            {key_errors, value_errors} ->
+              {:cont, key_errors ++ value_errors ++ acc}
           end
         end)
         |> case do
-          true ->
-            acc
-
-          false ->
+          :ok ->
             []
+
+          errors ->
+            errors ++ acc
         end
     end)
   end
