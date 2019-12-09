@@ -146,9 +146,16 @@ defmodule Breakfast do
   defp do_cast_any_nested_decoder_values(path_and_type, value, strict? \\ true)
 
   defp do_cast_any_nested_decoder_values({[], {:cereal, module}}, value, strict?) do
-    case Breakfast.decode(module, value) do
-      %Yogurt{errors: [], struct: struct} ->
-        struct
+    with value when not is_nil(value) <- value,
+         %Yogurt{errors: [], struct: struct} <- Breakfast.decode(module, value) do
+      struct
+    else
+      nil ->
+        if strict?,
+          do: %Yogurt{
+            errors: ["value that was expected to cast to a #{inspect(module)}.t() was nil"]
+          },
+          else: value
 
       %Yogurt{errors: [_ | _]} = yogurt ->
         if strict?, do: yogurt, else: value
