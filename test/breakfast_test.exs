@@ -1073,10 +1073,14 @@ defmodule BreakfastTest do
       end
     end
 
-    @tag :only
     test "if a value that should be a decoder is nil, this should result in a decode error" do
       result = Breakfast.decode(NilDecoders, %{"user" => nil})
-      assert result.errors == [user: [email: "params were nil"]]
+
+      assert result.errors == [
+               user: [
+                 "value that was expected to cast to a BreakfastTest.NilDecoders.User.t() was nil"
+               ]
+             ]
     end
   end
 end
