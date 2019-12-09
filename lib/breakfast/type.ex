@@ -204,7 +204,7 @@ defmodule Breakfast.Type do
   end
 
   @spec validate(Field.type(), term()) :: [String.t()]
-  def validate({:tuple, union_types}, term) do
+  def validate({:tuple, union_types} = type, term) do
     with true <- is_tuple(term),
          term_as_list = Tuple.to_list(term),
          true <- length(union_types) == length(term_as_list),
@@ -213,7 +213,9 @@ defmodule Breakfast.Type do
       []
     else
       false ->
-        ["expected #{inspect(List.to_tuple(union_types))}, got: #{inspect(term)}"]
+        [
+          "expected a tuple with the following shape: #{display_type(type)}, got: #{inspect(term)}"
+        ]
     end
   end
 
@@ -384,21 +386,21 @@ defmodule Breakfast.Type do
         end
 
       {key_type, value_type}, acc ->
-        Enum.any?(map, fn {key, value} ->
+        Enum.reduce_while(map, [], fn {key, value}, acc ->
           case {validate(key_type, key), validate(value_type, value)} do
             {[], []} ->
-              true
+              {:halt, :ok}
 
-            _other ->
-              false
+            {key_errors, value_errors} ->
+              {:cont, key_errors ++ value_errors ++ acc}
           end
         end)
         |> case do
-          true ->
-            acc
-
-          false ->
+          :ok ->
             []
+
+          errors ->
+            errors ++ acc
         end
     end)
   end
@@ -430,11 +432,40 @@ defmodule Breakfast.Type do
     "required(#{displayed_fields})"
   end
 
+  defp display_type({:tuple, element_types}) do
+    tuple_contents =
+      element_types
+      |> Enum.map(&display_type/1)
+      |> Enum.join(", ")
+
+    "{#{tuple_contents}}"
+  end
+
   defp display_type({:union, types}) do
     types
     |> Enum.map(&display_type/1)
     |> Enum.join(" | ")
   end
+
+  defp display_type({:map, {required, optional}}) do
+    fields =
+      [required: required, optional: optional]
+      |> Enum.flat_map(fn {require_type, fields} ->
+        Enum.map(fields, fn {key_type, value_type} ->
+          "#{require_type}(#{display_type(key_type)}) => #{display_type(value_type)}"
+        end)
+      end)
+
+    "%{#{Enum.join(fields, "\n")}}"
+  end
+
+  defp display_type({:cereal, module}) do
+    "#{inspect(module)}.t()"
+  end
+
+  defp display_type({:list, type}), do: "[#{display_type(type)}]"
+
+  defp display_type(type) when is_atom(type), do: "#{type}()"
 
   defp display_type({:literal, literal}), do: inspect(literal)
 
