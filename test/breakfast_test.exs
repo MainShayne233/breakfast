@@ -1055,4 +1055,28 @@ defmodule BreakfastTest do
              ]
     end
   end
+
+  describe "handling internal nil decoders" do
+    defmodule NilDecoders do
+      defmodule User do
+        use Breakfast
+
+        cereal do
+          field :email, String.t(), default: ""
+        end
+      end
+
+      use Breakfast
+
+      cereal do
+        field :user, {:cereal, User}
+      end
+    end
+
+    @tag :only
+    test "if a value that should be a decoder is nil, this should result in a decode error" do
+      result = Breakfast.decode(NilDecoders, %{"user" => nil})
+      assert result.errors == [user: [email: "params were nil"]]
+    end
+  end
 end
