@@ -259,7 +259,7 @@ defmodule Breakfast.Type do
       {:item_errors, [_ | _] = errors} ->
         [
           "expected a #{list_type} of type #{display_type(type)}, got a #{list_type} with at least one invalid element: #{
-            Enum.join(errors, ", ")
+            Enum.join(Enum.map(errors, &inspect/1), ", ")
           }"
         ]
     end
