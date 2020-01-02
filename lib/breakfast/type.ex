@@ -259,7 +259,7 @@ defmodule Breakfast.Type do
       {:item_errors, [_ | _] = errors} ->
         [
           "expected a #{list_type} of type #{display_type(type)}, got a #{list_type} with at least one invalid element: #{
-            Enum.join(Enum.map(errors, &inspect/1), ", ")
+            Enum.join(Enum.map(errors, &display_error/1), ", ")
           }"
         ]
     end
@@ -530,4 +530,8 @@ defmodule Breakfast.Type do
 
   @spec is_empty_map(term()) :: boolean()
   def is_empty_map(term), do: term == %{}
+
+  @spec display_error(term()) :: String.t()
+  defp display_error(error) when is_binary(error), do: error
+  defp display_error(error), do: inspect(error)
 end
